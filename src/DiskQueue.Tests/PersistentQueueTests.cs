@@ -7,6 +7,7 @@ using System.IO;
 namespace DiskQueue.Tests
 {
     using System.Threading.Tasks;
+    using Implementation;
 
     [TestFixture]
     public class PersistentQueueTests : PersistentQueueTestsBase
@@ -14,13 +15,13 @@ namespace DiskQueue.Tests
         [Test]
         public void Only_single_instance_of_queue_can_exists_at_any_one_time()
         {
-            var invalidOperationException = Assert.Throws<InvalidOperationException>(
-                () =>
+            var invalidOperationException = Assert.ThrowsAsync<InvalidOperationException>(
+               async () =>
                 {
-                    using (new PersistentQueue(Path))
+                    await using (await PersistentQueue.Create(Path).ConfigureAwait(false))
                     {
                         // ReSharper disable once ObjectCreationAsStatement
-                        new PersistentQueue(Path);
+                        _ = await PersistentQueue.Create(Path).ConfigureAwait(false);
                     }
                 });
 
@@ -36,16 +37,16 @@ namespace DiskQueue.Tests
             var lockFilePath = System.IO.Path.Combine(Path, "lock");
             await File.WriteAllTextAsync(lockFilePath, "78924759045").ConfigureAwait(false);
 
-            using (new PersistentQueue(Path))
+            await using (await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
                 Assert.Pass();
             }
         }
 
         [Test]
-        public void Can_create_new_queue()
+        public async Task Can_create_new_queue()
         {
-            new PersistentQueue(Path).Dispose();
+            await using var q = await PersistentQueue.Create(Path).ConfigureAwait(false);
         }
 
         [Test]
@@ -59,11 +60,11 @@ namespace DiskQueue.Tests
             Directory.CreateDirectory(Path);
             await File.WriteAllBytesAsync(System.IO.Path.Combine(Path, "transaction.log"), buffer.ToArray()).ConfigureAwait(false);
 
-            var invalidOperationException = Assert.Throws<InvalidOperationException>(
-                () =>
+            var invalidOperationException = Assert.ThrowsAsync<UnableToSetupException>(
+            async () =>
                 {
                     // ReSharper disable once ObjectCreationAsStatement
-                    new PersistentQueue(Path);
+                    _ = await PersistentQueue.Create(Path, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 });
 
             Assert.That(
@@ -73,17 +74,17 @@ namespace DiskQueue.Tests
         }
 
         [Test]
-        public void Dequeing_from_empty_queue_will_return_null()
+        public async Task Dequeing_from_empty_queue_will_return_null()
         {
-            using var queue = new PersistentQueue(Path);
+            await using var queue = await PersistentQueue.Create(Path).ConfigureAwait(false);
             using var session = queue.OpenSession();
-            Assert.IsNull(session.Dequeue());
+            Assert.IsNull(await session.Dequeue());
         }
 
         [Test]
         public async Task Can_enqueue_data_in_queue()
         {
-            using var queue = new PersistentQueue(Path);
+            await using var queue = await PersistentQueue.Create(Path).ConfigureAwait(false);
             using var session = queue.OpenSession();
             await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
             await session.Flush().ConfigureAwait(false);
@@ -92,27 +93,27 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Can_dequeue_data_from_queue()
         {
-            using var queue = new PersistentQueue(Path);
+            await using var queue = await PersistentQueue.Create(Path).ConfigureAwait(false);
             using var session = queue.OpenSession();
             await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
             await session.Flush().ConfigureAwait(false);
-            CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session.Dequeue());
+            CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
         }
 
         [Test]
         public async Task Can_enqueue_and_dequeue_data_after_restarting_queue()
         {
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }
 
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
-                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session.Dequeue());
+                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
                 await session.Flush().ConfigureAwait(false);
             }
         }
@@ -120,18 +121,18 @@ namespace DiskQueue.Tests
         [Test]
         public async Task After_dequeue_from_queue_item_no_longer_on_queue()
         {
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }
 
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
-                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session.Dequeue());
-                Assert.IsNull(session.Dequeue());
+                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
+                Assert.IsNull(await session.Dequeue());
                 await session.Flush().ConfigureAwait(false);
             }
         }
@@ -139,24 +140,24 @@ namespace DiskQueue.Tests
         [Test]
         public async Task After_dequeue_from_queue_item_no_longer_on_queue_with_queues_restarts()
         {
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }
 
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
-                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session.Dequeue());
+                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
                 await session.Flush().ConfigureAwait(false);
             }
 
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
-                Assert.IsNull(session.Dequeue());
+                Assert.IsNull(await session.Dequeue());
                 await session.Flush().ConfigureAwait(false);
             }
         }
@@ -164,24 +165,24 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Not_flushing_the_session_will_revert_dequeued_items()
         {
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }
 
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
-                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session.Dequeue());
+                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
                 //Explicitly omitted: session.Flush();
             }
 
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
-                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session.Dequeue());
+                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
                 await session.Flush().ConfigureAwait(false);
             }
         }
@@ -189,23 +190,23 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Not_flushing_the_session_will_revert_dequeued_items_two_sessions_same_queue()
         {
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }
 
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session2 = queue.OpenSession())
             {
                 using (var session1 = queue.OpenSession())
                 {
-                    CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session1.Dequeue());
+                    CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, await session1.Dequeue());
                     //Explicitly omitted: session.Flush();
                 }
 
-                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session2.Dequeue());
+                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, await session2.Dequeue());
                 await session2.Flush().ConfigureAwait(false);
             }
         }
@@ -213,26 +214,26 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Two_sessions_off_the_same_queue_cannot_get_same_item()
         {
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }
 
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session2 = queue.OpenSession())
             using (var session1 = queue.OpenSession())
             {
-                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session1.Dequeue());
-                Assert.IsNull(session2.Dequeue());
+                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, await session1.Dequeue());
+                Assert.IsNull(await session2.Dequeue());
             }
         }
 
         [Test]
         public async Task Items_are_reverted_in_their_original_order()
         {
-            using (var queue = new PersistentQueue(Path))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1 }).ConfigureAwait(false);
@@ -244,11 +245,11 @@ namespace DiskQueue.Tests
 
             for (int i = 0; i < 4; i++)
             {
-                using var queue = new PersistentQueue(Path);
+                await using var queue = await PersistentQueue.Create(Path).ConfigureAwait(false);
                 using var session = queue.OpenSession();
-                CollectionAssert.AreEqual(new byte[] { 1 }, session.Dequeue(), "Incorrect order on turn " + (i + 1));
-                CollectionAssert.AreEqual(new byte[] { 2 }, session.Dequeue(), "Incorrect order on turn " + (i + 1));
-                CollectionAssert.AreEqual(new byte[] { 3 }, session.Dequeue(), "Incorrect order on turn " + (i + 1));
+                CollectionAssert.AreEqual(new byte[] { 1 }, await session.Dequeue(), "Incorrect order on turn " + (i + 1));
+                CollectionAssert.AreEqual(new byte[] { 2 }, await session.Dequeue(), "Incorrect order on turn " + (i + 1));
+                CollectionAssert.AreEqual(new byte[] { 3 }, await session.Dequeue(), "Incorrect order on turn " + (i + 1));
                 // Dispose without `session.Flush();`
             }
         }

@@ -10,17 +10,6 @@ namespace DiskQueue
 	/// </summary>
 	public interface IPersistentQueue : IDisposable
 	{
-		/// <summary>
-		/// Open an read/write session
-		/// </summary>
-		IPersistentQueueSession OpenSession();
-
-		/// <summary>
-		/// Returns the number of items in the queue, but does not include items added or removed
-		/// in currently open sessions.
-		/// </summary>
-		int EstimatedCountOfItemsInQueue { get; }
-
 		///// <summary>
 		///// Internal adjustables. Use with caution. Read the source code.
 		///// </summary>

@@ -4,23 +4,28 @@ using NUnit.Framework;
 
 namespace DiskQueue.Tests
 {
+    using System.Threading;
     using System.Threading.Tasks;
+    using Implementation;
 
     [TestFixture]
     public class LongTermDequeueTests
     {
-        IPersistentQueue _q;
+        private IPersistentQueueImpl _q;
+        private CancellationTokenSource _source;
 
         [SetUp]
-        public void Setup()
+        public async Task Setup()
         {
-            _q = PersistentQueue.WaitFor("./queue", TimeSpan.FromSeconds(10));
+            _source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            _q = await PersistentQueue.Create("./queue", cancellationToken: _source.Token).ConfigureAwait(false);
         }
 
         [TearDown]
-        public void Teardown()
+        public async Task Teardown()
         {
-            _q.Dispose();
+            await _q.DisposeAsync().ConfigureAwait(false);
+            _source.Dispose();
         }
 
         [Test]
@@ -34,7 +39,7 @@ namespace DiskQueue.Tests
                 await s2.Flush().ConfigureAwait(false);
             }
 
-            var x = s1.Dequeue();
+            var x = await s1.Dequeue(CancellationToken.None).ConfigureAwait(false);
             await s1.Flush().ConfigureAwait(false);
             s1.Dispose();
 

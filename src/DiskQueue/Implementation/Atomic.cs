@@ -70,19 +70,15 @@ namespace DiskQueue.Implementation
 						File.Move(path + ".old_copy", path);
 				}
 
-				using (
-					var stream = new FileStream(path,
-					                            FileMode.OpenOrCreate,
-					                            FileAccess.Read,
-					                            FileShare.None,
-					                            0x10000,
-					                            FileOptions.SequentialScan)
-					)
-				{
-					SetPermissions.TryAllowReadWriteForAll(path);
-					action(stream);
-				}
-			}
+                using var stream = new FileStream(path,
+                    FileMode.OpenOrCreate,
+                    FileAccess.Read,
+                    FileShare.None,
+                    0x10000,
+                    FileOptions.SequentialScan);
+                SetPermissions.TryAllowReadWriteForAll(path);
+                action(stream);
+            }
 		}
 
 		/// <summary>

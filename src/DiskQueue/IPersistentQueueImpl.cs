@@ -13,8 +13,13 @@ namespace DiskQueue
 	/// <para>You should be careful using any of these methods</para>
 	/// <para>Please read the source code before using these methods in production software</para>
 	/// </summary>
-	internal interface IPersistentQueueImpl : IDisposable
+	internal interface IPersistentQueueImpl : IAsyncDisposable
 	{
+        /// <summary>
+        /// Open an read/write session
+        /// </summary>
+        IPersistentQueueSession OpenSession();
+
         /// <summary>
         /// <para>UNSAFE. Incorrect use will result in data loss.</para>
         /// Lock and process a data file writer at the current write head.
@@ -36,11 +41,12 @@ namespace DiskQueue
 		/// </summary>
 		Task CommitTransaction(ICollection<Operation> operations, CancellationToken cancellationToken = default);
 
-		/// <summary>
-		/// <para>UNSAFE. Incorrect use will result in data loss.</para>
-		/// Dequeue data, returning storage entry
-		/// </summary>
-		Entry Dequeue();
+        /// <summary>
+        /// <para>UNSAFE. Incorrect use will result in data loss.</para>
+        /// Dequeue data, returning storage entry
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        Task<Entry> Dequeue(CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// <para>UNSAFE. Incorrect use will result in data loss.</para>
@@ -49,24 +55,16 @@ namespace DiskQueue
 		/// </summary>
 		void Reinstate(IEnumerable<Operation> reinstatedOperations);
 
+        /// <summary>
+        /// Returns the number of items in the queue, but does not include items added or removed
+        /// in currently open sessions.
+        /// </summary>
+        int EstimatedCountOfItemsInQueue { get; }
+
 		/// <summary>
 		/// <para>Safe, available for tests and performance.</para>
 		/// <para>Current writing file number</para>
 		/// </summary>
 		int CurrentFileNumber { get; }
-
-		/// <summary>
-		/// <para>Safe, available for tests and performance.</para>
-		/// <para>If true, trim and flush waiting transactions on dispose</para>
-		/// </summary>
-		bool TrimTransactionLogOnDispose { get; set; }
-
-		/// <summary>
-		/// <para>Setting this to false may cause unexpected data loss in some failure conditions.</para>
-		/// <para>Defaults to true.</para>
-		/// <para>If true, each transaction commit will flush the transaction log.</para>
-		/// <para>This is slow, but ensures the log is correct per transaction in the event of a hard termination (i.e. power failure)</para>
-		/// </summary>
-		bool ParanoidFlushing { get; set; }
 	}
 }

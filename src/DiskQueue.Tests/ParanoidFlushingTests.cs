@@ -4,18 +4,18 @@
 namespace DiskQueue.Tests
 {
     using System.Threading.Tasks;
+    using Implementation;
 
     [TestFixture]
     public class ParanoidFlushingTests
     {
-        readonly byte[] _one = {1, 2, 3, 4};
-        readonly byte[] _two = {5, 6, 7, 8};
+        readonly byte[] _one = { 1, 2, 3, 4 };
+        readonly byte[] _two = { 5, 6, 7, 8 };
 
         [Test]
         public async Task Paranoid_flushing_still_respects_session_rollback()
         {
-            using var queue = new PersistentQueue("./queue");
-            queue.Internals.ParanoidFlushing = true;
+            await using var queue = await PersistentQueue.Create("./queue", paranoidFlushing: true).ConfigureAwait(false);
 
             // Flush only `_one`
             using (var s1 = queue.OpenSession())
@@ -28,21 +28,21 @@ namespace DiskQueue.Tests
             // Read without flushing
             using (var s2 = queue.OpenSession())
             {
-                Assert.That(s2.Dequeue(), Is.EquivalentTo(_one), "Unexpected item at head of queue");
-                Assert.That(s2.Dequeue(), Is.Null, "Too many items on queue");
+                Assert.That(await s2.Dequeue().ConfigureAwait(false), Is.EquivalentTo(_one), "Unexpected item at head of queue");
+                Assert.That(await s2.Dequeue().ConfigureAwait(false), Is.Null, "Too many items on queue");
             }
 
             // Read again WITH flushing
             using (var s3 = queue.OpenSession())
             {
-                Assert.That(s3.Dequeue(), Is.EquivalentTo(_one), "Queue was unexpectedly empty?");
-                Assert.That(s3.Dequeue(), Is.Null, "Too many items on queue");
+                Assert.That(await s3.Dequeue().ConfigureAwait(false), Is.EquivalentTo(_one), "Queue was unexpectedly empty?");
+                Assert.That(await s3.Dequeue().ConfigureAwait(false), Is.Null, "Too many items on queue");
                 await s3.Flush().ConfigureAwait(false);
             }
 
             // Read empty queue to be sure
             using var s4 = queue.OpenSession();
-            Assert.That(s4.Dequeue(), Is.Null, "Queue was not empty after flush");
+            Assert.That(await s4.Dequeue().ConfigureAwait(false), Is.Null, "Queue was not empty after flush");
             await s4.Flush().ConfigureAwait(false);
         }
     }

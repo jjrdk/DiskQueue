@@ -6,6 +6,7 @@ using NUnit.Framework;
 namespace DiskQueue.Tests
 {
     using System.Threading.Tasks;
+    using Implementation;
 
     [TestFixture]
     public class ThreadSafeAccessTests
@@ -18,8 +19,7 @@ namespace DiskQueue.Tests
             const int target = 100;
             var rnd = new Random();
 
-
-            IPersistentQueue _subject = new PersistentQueue("queue_a");
+            IPersistentQueueImpl _subject = await PersistentQueue.Create("queue_a").ConfigureAwait(false);
             var t1 = Task.Run(
                 async () =>
                 {
@@ -41,7 +41,7 @@ namespace DiskQueue.Tests
                     {
                         using var session = _subject.OpenSession();
                         Console.Write("<");
-                        session.Dequeue();
+                        await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
                         Interlocked.Increment(ref t2s);
                         Thread.Sleep(rnd.Next(0, 100));
                         await session.Flush().ConfigureAwait(false);
@@ -52,8 +52,8 @@ namespace DiskQueue.Tests
             //t1.Start();
             //t2.Start();
 
-            await t1;
-            await t2;
+            await t1.ConfigureAwait(false);
+            await t2.ConfigureAwait(false);
             Assert.That(t1s, Is.EqualTo(target));
             Assert.That(t2s, Is.EqualTo(target));
         }
@@ -70,17 +70,14 @@ namespace DiskQueue.Tests
                 {
                     for (int i = 0; i < target; i++)
                     {
-                        using var subject = PersistentQueue.WaitFor("queue_b", TimeSpan.FromSeconds(10));
-                        using (var session = subject.OpenSession())
-                        {
-                            Console.Write("(");
-                            await session.Enqueue(new byte[] {1, 2, 3, 4}).ConfigureAwait(false);
-                            Interlocked.Increment(ref t1s);
-                            await session.Flush().ConfigureAwait(false);
-                            Console.Write(")");
-                        }
-
-                        Thread.Sleep(0);
+                        await using var subject = await PersistentQueue.Create("queue_b", TimeSpan.FromSeconds(10))
+                            .ConfigureAwait(false);
+                        using var session = subject.OpenSession();
+                        Console.Write("(");
+                        await session.Enqueue(new byte[] {1, 2, 3, 4}).ConfigureAwait(false);
+                        Interlocked.Increment(ref t1s);
+                        await session.Flush().ConfigureAwait(false);
+                        Console.Write(")");
                     }
                 });
             var t2 = Task.Run(
@@ -88,22 +85,22 @@ namespace DiskQueue.Tests
                 {
                     for (int i = 0; i < target; i++)
                     {
-                        using var subject = PersistentQueue.WaitFor("queue_b", TimeSpan.FromSeconds(10));
-                        using (var session = subject.OpenSession())
-                        {
-                            Console.Write("<");
-                            session.Dequeue();
-                            Interlocked.Increment(ref t2s);
-                            await session.Flush().ConfigureAwait(false);
-                            Console.Write(">");
-                        }
-
-                        Thread.Sleep(0);
+                        using var source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                        var subject = await PersistentQueue
+                            .Create("queue_b", cancellationToken: source.Token)
+                            .ConfigureAwait(false);
+                        using var session = subject.OpenSession();
+                        Console.Write("<");
+                        await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
+                        Interlocked.Increment(ref t2s);
+                        await session.Flush().ConfigureAwait(false);
+                        Console.Write(">");
+                        await subject.DisposeAsync().ConfigureAwait(false);
                     }
                 });
 
-            await t1;
-            await t2;
+            await t1.ConfigureAwait(false);
+            await t2.ConfigureAwait(false);
 
             Assert.That(t1s, Is.EqualTo(target));
             Assert.That(t2s, Is.EqualTo(target));

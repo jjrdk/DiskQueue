@@ -52,7 +52,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task If_data_stream_is_truncated_will_raise_error()
         {
-            using (var queue = new PersistentQueue(Path))
+          await  using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
@@ -64,12 +64,12 @@ namespace DiskQueue.Tests
                 fs.SetLength(2); //corrupt the file
             }
 
-            var invalidOperationException = Assert.Throws<InvalidOperationException>(
-                () =>
+            var invalidOperationException = Assert.ThrowsAsync<InvalidOperationException>(
+             async () =>
                 {
-                    using var queue = new PersistentQueue(Path);
+                    await using var queue = await PersistentQueue.Create(Path).ConfigureAwait(false);
                     using var session = queue.OpenSession();
-                    session.Dequeue();
+                    await session.Dequeue().ConfigureAwait(false);
                 });
 
             Assert.That(

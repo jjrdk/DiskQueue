@@ -2,6 +2,7 @@ using System;
 
 namespace DiskQueue
 {
+    using System.Threading;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -14,18 +15,20 @@ namespace DiskQueue
 		/// <summary>
 		/// Queue data for a later decode. Data is written on `Flush()`
 		/// </summary>
-		Task Enqueue(byte[] data);
+		Task Enqueue(byte[] data, CancellationToken cancellationToken = default);
 
-		/// <summary>
-		/// Try to pull data from the queue. Data is removed from the queue on `Flush()`
-		/// </summary>
-		byte[] Dequeue();
+        /// <summary>
+        /// Try to pull data from the queue. Data is removed from the queue on `Flush()`
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        Task<byte[]> Dequeue(CancellationToken cancellationToken = default);
 
-		/// <summary>
-		/// Commit actions taken in this session since last flush.
-		/// If the session is disposed with no flush, actions are not persisted 
-		/// to the queue (Enqueues are not written, dequeues are left on the queue)
-		/// </summary>
-		Task Flush();
+        /// <summary>
+        /// Commit actions taken in this session since last flush.
+        /// If the session is disposed with no flush, actions are not persisted
+        /// to the queue (Enqueues are not written, dequeues are left on the queue)
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        Task Flush(CancellationToken cancellationToken = default);
 	}
 }

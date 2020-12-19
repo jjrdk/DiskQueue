@@ -24,76 +24,69 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using System;
-using System.Runtime.Serialization;
-using System.Security.Permissions;
-using System.Text;
-
 namespace DiskQueue.Implementation
 {
-	/// <summary>
-	/// Exception thrown when data can't be persisted
-	/// </summary>
-	[Serializable]
-	public class PendingWriteException : Exception
-	{
-		private readonly Exception[] pendingWritesExceptions;
+    using System;
+    using System.Text;
 
-		/// <summary>
-		/// Aggregate causing exceptions
-		/// </summary>
-		public PendingWriteException(Exception[] pendingWritesExceptions)
-			: base("Error during pending writes")
-		{
-			this.pendingWritesExceptions = pendingWritesExceptions;
-		}
+    public class UnableToSetupException : Exception
+    {
+        public UnableToSetupException(string message) : base(message)
+        {
+        }
+    }
 
-		/// <summary>
-		/// Set of causing exceptions
-		/// </summary>
-		public Exception[] PendingWritesExceptions
-		{
-			get { return pendingWritesExceptions; }
-		}
+    /// <summary>
+    /// Exception thrown when data can't be persisted
+    /// </summary>
+    public class PendingWriteException : Exception
+    {
+        private readonly Exception[] pendingWritesExceptions;
 
-		/// <summary>
-		/// Gets a message that describes the current exception.
-		/// </summary>
-		public override string Message
-		{
-			get
-			{
-				var sb = new StringBuilder(base.Message).Append(":");
-				foreach (var exception in pendingWritesExceptions)
-				{
-					sb.AppendLine().Append(" - ").Append(exception.Message);
-				}
-				return sb.ToString();
-			}
-		}
+        /// <summary>
+        /// Aggregate causing exceptions
+        /// </summary>
+        public PendingWriteException(Exception[] pendingWritesExceptions)
+            : base("Error during pending writes")
+        {
+            this.pendingWritesExceptions = pendingWritesExceptions;
+        }
 
-		/// <summary>
-		/// Creates and returns a string representation of the current exception.
-		/// </summary>
-		public override string ToString()
-		{
-			var sb = new StringBuilder(base.Message).Append(":");
-			foreach (var exception in pendingWritesExceptions)
-			{
-				sb.AppendLine().Append(" - ").Append(exception);
-			}
-			return sb.ToString();
-		}
+        /// <summary>
+        /// Set of causing exceptions
+        /// </summary>
+        public Exception[] PendingWritesExceptions
+        {
+            get { return pendingWritesExceptions; }
+        }
 
-		/// <summary>
-		/// Sets the <see cref="T:System.Runtime.Serialization.SerializationInfo"/> with information about the exception.
-		/// </summary>
-		/// <param name="info">The <see cref="T:System.Runtime.Serialization.SerializationInfo"/> that holds the serialized object data about the exception being thrown. </param><param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"/> that contains contextual information about the source or destination. </param><exception cref="T:System.ArgumentNullException">The <paramref name="info"/> parameter is a null reference (Nothing in Visual Basic). </exception><filterpriority>2</filterpriority><PermissionSet><IPermission class="System.Security.Permissions.FileIOPermission, mscorlib, Version=2.0.3600.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" version="1" Read="*AllFiles*" PathDiscovery="*AllFiles*"/><IPermission class="System.Security.Permissions.SecurityPermission, mscorlib, Version=2.0.3600.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" version="1" Flags="SerializationFormatter"/></PermissionSet>
-		[SecurityPermission(SecurityAction.LinkDemand, Flags = SecurityPermissionFlag.SerializationFormatter)]
-		public override void GetObjectData(SerializationInfo info, StreamingContext context)
-		{
-			base.GetObjectData(info, context);
-			info.AddValue("PendingWritesExceptions", PendingWritesExceptions);
-		}
-	}
+        /// <summary>
+        /// Gets a message that describes the current exception.
+        /// </summary>
+        public override string Message
+        {
+            get
+            {
+                var sb = new StringBuilder(base.Message).Append(':');
+                foreach (var exception in pendingWritesExceptions)
+                {
+                    sb.AppendLine().Append(" - ").Append(exception.Message);
+                }
+                return sb.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Creates and returns a string representation of the current exception.
+        /// </summary>
+        public override string ToString()
+        {
+            var sb = new StringBuilder(base.Message).Append(':');
+            foreach (var exception in pendingWritesExceptions)
+            {
+                sb.AppendLine().Append(" - ").Append(exception);
+            }
+            return sb.ToString();
+        }
+    }
 }
