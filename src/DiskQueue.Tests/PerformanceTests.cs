@@ -6,13 +6,15 @@ using System.Collections.Generic;
 
 namespace DiskQueue.Tests
 {
+    using System.Threading.Tasks;
+
     [TestFixture, Explicit]
     public class PerformanceTests : PersistentQueueTestsBase
     {
-        [Test, Description(
-            "With a mid-range SSD, this is some 20x slower " +
-            "than with a single flush (depends on disk speed)")]
-        public void Enqueue_million_items_with_100_flushes()
+        [Test,
+         Description(
+             "With a mid-range SSD, this is some 20x slower " + "than with a single flush (depends on disk speed)")]
+        public async Task Enqueue_million_items_with_100_flushes()
         {
             using var queue = new PersistentQueue(Path);
             for (int i = 0; i < 100; i++)
@@ -20,35 +22,38 @@ namespace DiskQueue.Tests
                 using var session = queue.OpenSession();
                 for (int j = 0; j < 10000; j++)
                 {
-                    session.Enqueue(Guid.NewGuid().ToByteArray());
+                    await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
                 }
-                session.Flush();
+
+                await session.Flush().ConfigureAwait(false);
             }
         }
 
         [Test]
-        public void Enqueue_million_items_with_single_flush()
+        public async Task Enqueue_million_items_with_single_flush()
         {
             using var queue = new PersistentQueue(Path);
             using var session = queue.OpenSession();
             for (int i = 0; i < largeCount; i++)
             {
-                session.Enqueue(Guid.NewGuid().ToByteArray());
+                await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
             }
-            session.Flush();
+
+            await session.Flush().ConfigureAwait(false);
         }
 
         [Test]
-        public void Enqueue_and_dequeue_million_items_same_queue()
+        public async Task Enqueue_and_dequeue_million_items_same_queue()
         {
             using var queue = new PersistentQueue(Path);
             using (var session = queue.OpenSession())
             {
                 for (int i = 0; i < largeCount; i++)
                 {
-                    session.Enqueue(Guid.NewGuid().ToByteArray());
+                    await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
                 }
-                session.Flush();
+
+                await session.Flush().ConfigureAwait(false);
             }
 
             using (var session = queue.OpenSession())
@@ -57,21 +62,23 @@ namespace DiskQueue.Tests
                 {
                     _ = new Guid(session.Dequeue());
                 }
-                session.Flush();
+
+                await session.Flush().ConfigureAwait(false);
             }
         }
 
         [Test]
-        public void Enqueue_and_dequeue_million_items_restart_queue()
+        public async Task Enqueue_and_dequeue_million_items_restart_queue()
         {
             using (var queue = new PersistentQueue(Path))
             {
                 using var session = queue.OpenSession();
                 for (int i = 0; i < largeCount; i++)
                 {
-                    session.Enqueue(Guid.NewGuid().ToByteArray());
+                    await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
                 }
-                session.Flush();
+
+                await session.Flush().ConfigureAwait(false);
             }
 
             using (var queue = new PersistentQueue(Path))
@@ -81,12 +88,13 @@ namespace DiskQueue.Tests
                 {
                     _ = new Guid(session.Dequeue());
                 }
-                session.Flush();
+
+                await session.Flush().ConfigureAwait(false);
             }
         }
 
         [Test]
-        public void Enqueue_and_dequeue_large_items_with_restart_queue()
+        public async Task Enqueue_and_dequeue_large_items_with_restart_queue()
         {
             var random = new Random();
             var itemsSizes = new List<int>();
@@ -97,9 +105,10 @@ namespace DiskQueue.Tests
                 {
                     var data = new byte[random.Next(1024 * 512, 1024 * 1024)];
                     itemsSizes.Add(data.Length);
-                    session.Enqueue(data);
+                    await session.Enqueue(data).ConfigureAwait(false);
                 }
-                session.Flush();
+
+                await session.Flush().ConfigureAwait(false);
             }
 
             using (var queue = new PersistentQueue(Path))
@@ -109,7 +118,8 @@ namespace DiskQueue.Tests
                 {
                     Assert.AreEqual(itemsSizes[i], session.Dequeue().Length);
                 }
-                session.Flush();
+
+                await session.Flush().ConfigureAwait(false);
             }
         }
 

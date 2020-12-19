@@ -6,69 +6,76 @@ using NUnit.Framework;
 
 namespace DiskQueue.Tests
 {
-	[TestFixture]
-	public class MultipleProcessAccessTests
-	{
-		[Test,
-		Description("Multiple PersistentQueue instances are " +
-		            "pretty much the same as multiple processes to " +
-		            "the DiskQueue library")]
-		public void Can_access_from_multiple_queues_if_used_carefully ()
-		{
-			var received = new List<byte[]>();
-			int numberOfItems = 10;
+    using System.Threading.Tasks;
 
-			var t1 = new Thread(() => {
-				for (int i = 0; i < numberOfItems; i++)
-				{
-					AddToQueue(new byte[] { 1, 2, 3 });
-				}
-			});
-			var t2 = new Thread(() => {
-				while (received.Count < numberOfItems)
-				{
-					var data = ReadQueue();
-					if (data != null) received.Add(data);
-				}
-			});
+    [TestFixture]
+    public class MultipleProcessAccessTests
+    {
+        [Test,
+        Description("Multiple PersistentQueue instances are " +
+                    "pretty much the same as multiple processes to " +
+                    "the DiskQueue library")]
+        public void Can_access_from_multiple_queues_if_used_carefully()
+        {
+            var received = new List<byte[]>();
+            int numberOfItems = 10;
 
-			t1.Start();
-			t2.Start();
+            var waitHandle = new ManualResetEvent(false);
+            var t1 = new Thread(async () =>
+            {
+                for (int i = 0; i < numberOfItems; i++)
+                {
+                    await AddToQueue(new byte[] { 1, 2, 3 }).ConfigureAwait(false);
+                }
 
-			t1.Join();
+                waitHandle.Set();
+            });
+            var t2 = new Thread(async () =>
+            {
+                while (received.Count < numberOfItems)
+                {
+                    var data = await ReadQueue().ConfigureAwait(false);
+                    if (data != null) received.Add(data);
+                }
 
-			var ok = t2.Join(TimeSpan.FromSeconds(25));
+                waitHandle.Set();
+            });
 
-			if (!ok)
-			{
-				t2.Abort();
-				Assert.Fail("Did not receive all data in time");
-			}
-			Assert.That(received.Count, Is.EqualTo(numberOfItems), "received items");
-		}
+            t1.Start();
+            waitHandle.WaitOne();
+            waitHandle.Reset();
 
-		void AddToQueue(byte[] data)
-		{
-			Thread.Sleep(150);
-            using var queue = PersistentQueue.WaitFor(SharedStorage, TimeSpan.FromSeconds(30));
-            using var session = queue.OpenSession();
-            session.Enqueue(data);
-            session.Flush();
+            t2.Start();
+
+            var ok = waitHandle.WaitOne();
+
+            if (!ok)
+            {
+                t2.Abort();
+                Assert.Fail("Did not receive all data in time");
+            }
+            Assert.That(received.Count, Is.EqualTo(numberOfItems), "received items");
         }
 
-		byte[] ReadQueue()
-		{
-			Thread.Sleep(150);
+        async Task AddToQueue(byte[] data)
+        {
+            Thread.Sleep(150);
+            using var queue = PersistentQueue.WaitFor(SharedStorage, TimeSpan.FromSeconds(30));
+            using var session = queue.OpenSession();
+            await session.Enqueue(data).ConfigureAwait(false);
+            await session.Flush().ConfigureAwait(false);
+        }
+
+        async Task<byte[]> ReadQueue()
+        {
+            Thread.Sleep(150);
             using var queue = PersistentQueue.WaitFor(SharedStorage, TimeSpan.FromSeconds(30));
             using var session = queue.OpenSession();
             var data = session.Dequeue();
-            session.Flush();
+            await session.Flush().ConfigureAwait(false);
             return data;
         }
 
-		protected string SharedStorage
-		{
-			get { return "./MultipleAccess"; }
-		}
-	}
+        private string SharedStorage => "./MultipleAccess";
+    }
 }

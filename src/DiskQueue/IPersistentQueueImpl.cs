@@ -5,28 +5,36 @@ using DiskQueue.Implementation;
 
 namespace DiskQueue
 {
-	/// <summary>
+    using System.Threading;
+    using System.Threading.Tasks;
+
+    /// <summary>
 	/// Wrapper for exposing some inner workings of the persistent queue.
 	/// <para>You should be careful using any of these methods</para>
 	/// <para>Please read the source code before using these methods in production software</para>
 	/// </summary>
 	internal interface IPersistentQueueImpl : IDisposable
 	{
-		/// <summary>
-		/// <para>UNSAFE. Incorrect use will result in data loss.</para>
-		/// Lock and process a data file writer at the current write head.
-		/// <para>This will create new files if max size is exceeded</para>
-		/// </summary>
-		/// <param name="stream">Stream to write</param>
-		/// <param name="action">Writing action</param>
-		/// <param name="onReplaceStream">Continuation action if a new file is created</param>
-		void AcquireWriter(Stream stream, Func<Stream, long> action, Action<Stream> onReplaceStream);
+        /// <summary>
+        /// <para>UNSAFE. Incorrect use will result in data loss.</para>
+        /// Lock and process a data file writer at the current write head.
+        /// <para>This will create new files if max size is exceeded</para>
+        /// </summary>
+        /// <param name="stream">Stream to write</param>
+        /// <param name="action">Writing action</param>
+        /// <param name="onReplaceStream">Continuation action if a new file is created</param>
+        /// <param name="cancellationToken"></param>
+        Task AcquireWriter(
+            Stream stream,
+            Func<Stream, Task<long>> action,
+            Action<Stream> onReplaceStream,
+            CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// <para>UNSAFE. Incorrect use will result in data loss.</para>
 		/// Commit a sequence of operations to storage
 		/// </summary>
-		void CommitTransaction(ICollection<Operation> operations);
+		Task CommitTransaction(ICollection<Operation> operations, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// <para>UNSAFE. Incorrect use will result in data loss.</para>

@@ -1,9 +1,9 @@
 // Copyright (c) 2005 - 2008 Ayende Rahien (ayende@ayende.com)
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
-// 
+//
 //     * Redistributions of source code must retain the above copyright notice,
 //     this list of conditions and the following disclaimer.
 //     * Redistributions in binary form must reproduce the above copyright notice,
@@ -12,7 +12,7 @@
 //     * Neither the name of Ayende Rahien nor the names of its
 //     contributors may be used to endorse or promote products derived from this
 //     software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -38,21 +38,21 @@ namespace DiskQueue.Implementation
 	///  * You want to always rewrite the file, rathar than edit it.
 	///  * The underlying file system has at least transactional metadata.
 	///  * Thread safety is provided by the calling code.
-	/// 
+	///
 	/// Write implementation:
 	///  - Rename file to "[file].old_copy" (overwrite if needed
 	///  - Create new file stream with the file name and pass it to the client
 	///  - After client is done, close the stream
 	///  - Delete old file
-	/// 
+	///
 	/// Read implementation:
 	///  - If old file exists, remove new file and rename old file
-	/// 
+	///
 	/// </summary>
 	public static class Atomic
 	{
 		static readonly object _lock = new object();
-		
+
 		/// <summary>
 		/// Run a read action over a file by name.
 		/// Access is optimised for sequential scanning.
@@ -96,7 +96,7 @@ namespace DiskQueue.Implementation
 			lock (_lock)
 			{
 				// if the old copy file exists, this means that we have
-				// a previous corrupt write, so we will not overrite it, but 
+				// a previous corrupt write, so we will not overrite it, but
 				// rather overwrite the current file and keep it as our backup.
 				if (File.Exists(path + ".old_copy") == false)
 					File.Move(path, path + ".old_copy");
@@ -114,7 +114,7 @@ namespace DiskQueue.Implementation
 					action(stream);
 					stream.Flush();
 				}
-				
+
 				WaitDelete(path + ".old_copy");
 			}
 		}

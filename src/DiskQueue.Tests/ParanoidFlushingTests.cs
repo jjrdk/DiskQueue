@@ -3,14 +3,16 @@
 
 namespace DiskQueue.Tests
 {
-	[TestFixture]
-	public class ParanoidFlushingTests
-	{
-		readonly byte[] _one = { 1, 2, 3, 4 };
-		readonly byte[] _two = { 5, 6, 7, 8 };
+    using System.Threading.Tasks;
 
-		[Test]
-		public void Paranoid_flushing_still_respects_session_rollback ()
+    [TestFixture]
+    public class ParanoidFlushingTests
+    {
+        readonly byte[] _one = {1, 2, 3, 4};
+        readonly byte[] _two = {5, 6, 7, 8};
+
+        [Test]
+        public async Task Paranoid_flushing_still_respects_session_rollback()
         {
             using var queue = new PersistentQueue("./queue");
             queue.Internals.ParanoidFlushing = true;
@@ -18,9 +20,9 @@ namespace DiskQueue.Tests
             // Flush only `_one`
             using (var s1 = queue.OpenSession())
             {
-                s1.Enqueue(_one);
-                s1.Flush();
-                s1.Enqueue(_two);
+                await s1.Enqueue(_one).ConfigureAwait(false);
+                await s1.Flush().ConfigureAwait(false);
+                await s1.Enqueue(_two).ConfigureAwait(false);
             }
 
             // Read without flushing
@@ -35,13 +37,13 @@ namespace DiskQueue.Tests
             {
                 Assert.That(s3.Dequeue(), Is.EquivalentTo(_one), "Queue was unexpectedly empty?");
                 Assert.That(s3.Dequeue(), Is.Null, "Too many items on queue");
-                s3.Flush();
+                await s3.Flush().ConfigureAwait(false);
             }
 
             // Read empty queue to be sure
             using var s4 = queue.OpenSession();
             Assert.That(s4.Dequeue(), Is.Null, "Queue was not empty after flush");
-            s4.Flush();
+            await s4.Flush().ConfigureAwait(false);
         }
-	}
+    }
 }
