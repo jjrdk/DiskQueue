@@ -19,11 +19,9 @@ namespace DiskQueue.Tests
 
             var pendingWriteException = Assert.Throws<PendingWriteException>(() =>
             {
-                using (var session = new PersistentQueueSession(queueStub, limitedSizeStream, 1024 * 1024))
-                {
-                    session.Enqueue(new byte[64 * 1024 * 1024 + 1]);
-                    session.Flush();
-                }
+                using var session = new PersistentQueueSession(queueStub, limitedSizeStream, 1024 * 1024);
+                session.Enqueue(new byte[64 * 1024 * 1024 + 1]);
+                session.Flush();
             });
 
             Assert.That(pendingWriteException.Message, Is.EqualTo("Error during pending writes:\r\n - Memory stream is not expandable."));
@@ -37,11 +35,9 @@ namespace DiskQueue.Tests
 
             var notSupportedException = Assert.Throws<NotSupportedException>(() =>
             {
-                using (var session = new PersistentQueueSession(queueStub, limitedSizeStream, 1024 * 1024))
-                {
-                    session.Enqueue(new byte[64]);
-                    session.Flush();
-                }
+                using var session = new PersistentQueueSession(queueStub, limitedSizeStream, 1024 * 1024);
+                session.Enqueue(new byte[64]);
+                session.Flush();
             });
 
             Assert.That(notSupportedException.Message, Is.EqualTo(@"Memory stream is not expandable."));
@@ -63,13 +59,9 @@ namespace DiskQueue.Tests
 
             var invalidOperationException = Assert.Throws<InvalidOperationException>(() =>
             {
-                using (var queue = new PersistentQueue(Path))
-                {
-                    using (var session = queue.OpenSession())
-                    {
-                        session.Dequeue();
-                    }
-                }
+                using var queue = new PersistentQueue(Path);
+                using var session = queue.OpenSession();
+                session.Dequeue();
             });
 
             Assert.That(invalidOperationException.Message, Is.EqualTo("End of file reached while trying to read queue item"));

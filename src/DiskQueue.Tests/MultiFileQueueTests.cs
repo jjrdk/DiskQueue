@@ -8,46 +8,36 @@ namespace DiskQueue.Tests
 	{
 		[Test]
 		public void Can_limit_amount_of_items_in_queue_file()
-		{
-			using (IPersistentQueue queue = new PersistentQueue(Path, 10))
-			{
-				Assert.AreEqual(10, queue.MaxFileSize);
-			}
-		}
+        {
+            using IPersistentQueue queue = new PersistentQueue(Path, 10);
+            Assert.AreEqual(10, queue.MaxFileSize);
+        }
 
 		[Test]
 		public void Entering_more_than_count_of_items_will_work()
-		{
-			using (var queue = new PersistentQueue(Path, 10))
-			{
-				for (byte i = 0; i < 11; i++)
-				{
-					using (var session = queue.OpenSession())
-					{
-						session.Enqueue(new[] { i });
-						session.Flush();
-					}
-				}
-				Assert.AreEqual(11, queue.EstimatedCountOfItemsInQueue);
-			}
-		}
+        {
+            using var queue = new PersistentQueue(Path, 10);
+            for (byte i = 0; i < 11; i++)
+            {
+                using var session = queue.OpenSession();
+                session.Enqueue(new[] { i });
+                session.Flush();
+            }
+            Assert.AreEqual(11, queue.EstimatedCountOfItemsInQueue);
+        }
 
 		[Test]
 		public void When_creating_more_items_than_allowed_in_first_file_will_create_additional_file()
-		{
-			using (var queue = new PersistentQueue(Path, 10))
-			{
-				for (byte i = 0; i < 11; i++)
-				{
-					using (var session = queue.OpenSession())
-					{
-						session.Enqueue(new[] { i });
-						session.Flush();
-					}
-				}
-				Assert.AreEqual(1, queue.Internals.CurrentFileNumber);
-			}
-		}
+        {
+            using var queue = new PersistentQueue(Path, 10);
+            for (byte i = 0; i < 11; i++)
+            {
+                using var session = queue.OpenSession();
+                session.Enqueue(new[] { i });
+                session.Flush();
+            }
+            Assert.AreEqual(1, queue.Internals.CurrentFileNumber);
+        }
 
 		[Test]
 		public void Can_resume_writing_to_second_file_when_restart_queue()
@@ -55,25 +45,21 @@ namespace DiskQueue.Tests
 			using (var queue = new PersistentQueue(Path, 10))
 			{
 				for (byte i = 0; i < 11; i++)
-				{
-					using (var session = queue.OpenSession())
-					{
-						session.Enqueue(new[] { i });
-						session.Flush();
-					}
-				}
+                {
+                    using var session = queue.OpenSession();
+                    session.Enqueue(new[] { i });
+                    session.Flush();
+                }
 				Assert.AreEqual(1, queue.Internals.CurrentFileNumber);
 			}
 			using (var queue = new PersistentQueue(Path, 10))
 			{
 				for (byte i = 0; i < 2; i++)
-				{
-					using (var session = queue.OpenSession())
-					{
-						session.Enqueue(new[] { i });
-						session.Flush();
-					}
-				}
+                {
+                    using var session = queue.OpenSession();
+                    session.Enqueue(new[] { i });
+                    session.Flush();
+                }
 				Assert.AreEqual(1, queue.Internals.CurrentFileNumber);
 			}
 		}
@@ -84,26 +70,22 @@ namespace DiskQueue.Tests
 			using (var queue = new PersistentQueue(Path, 10))
 			{
 				for (byte i = 0; i < 12; i++)
-				{
-					using (var session = queue.OpenSession())
-					{
-						session.Enqueue(new[] { i });
-						session.Flush();
-					}
-				}
+                {
+                    using var session = queue.OpenSession();
+                    session.Enqueue(new[] { i });
+                    session.Flush();
+                }
 				Assert.AreEqual(1, queue.Internals.CurrentFileNumber);
 			}
 
 			using (var queue = new PersistentQueue(Path, 10))
 			{
 				for (byte i = 0; i < 12; i++)
-				{
-					using (var session = queue.OpenSession())
-					{
-						Assert.AreEqual(i, session.Dequeue()[0]);
-						session.Flush();
-					}
-				}
+                {
+                    using var session = queue.OpenSession();
+                    Assert.AreEqual(i, session.Dequeue()[0]);
+                    session.Flush();
+                }
 			}
 		}
 
@@ -113,47 +95,41 @@ namespace DiskQueue.Tests
 			using (var queue = new PersistentQueue(Path, 10))
 			{
 				for (byte i = 0; i < 12; i++)
-				{
-					using (var session = queue.OpenSession())
-					{
-						session.Enqueue(new[] { i });
-						session.Flush();
-					}
-				}
+                {
+                    using var session = queue.OpenSession();
+                    session.Enqueue(new[] { i });
+                    session.Flush();
+                }
 				Assert.AreEqual(1, queue.Internals.CurrentFileNumber);
 			}
 
 			using (var queue = new PersistentQueue(Path, 10))
 			{
 				for (byte i = 0; i < 3; i++)
-				{
-					using (var session = queue.OpenSession())
-					{
-						session.Enqueue(new[] { i });
-						session.Flush();
-					}
-				}
+                {
+                    using var session = queue.OpenSession();
+                    session.Enqueue(new[] { i });
+                    session.Flush();
+                }
 				Assert.AreEqual(1, queue.Internals.CurrentFileNumber);
 			}
 
 
 			using (var queue = new PersistentQueue(Path, 10))
-			{
-				using (var session = queue.OpenSession())
-				{
-					for (byte i = 0; i < 12; i++)
-					{
-						Assert.AreEqual(i, session.Dequeue()[0]);
-						session.Flush();
-					}
+            {
+                using var session = queue.OpenSession();
+                for (byte i = 0; i < 12; i++)
+                {
+                    Assert.AreEqual(i, session.Dequeue()[0]);
+                    session.Flush();
+                }
 
-					for (byte i = 0; i < 3; i++)
-					{
-						Assert.AreEqual(i, session.Dequeue()[0]);
-						session.Flush();
-					}
-				}
-			}
+                for (byte i = 0; i < 3; i++)
+                {
+                    Assert.AreEqual(i, session.Dequeue()[0]);
+                    session.Flush();
+                }
+            }
 		}
 
 		[Test]
@@ -162,26 +138,22 @@ namespace DiskQueue.Tests
 			using (var queue = new PersistentQueue(Path, 10))
 			{
 				for (byte i = 0; i < 12; i++)
-				{
-					using (var session = queue.OpenSession())
-					{
-						session.Enqueue(new[] { i });
-						session.Flush();
-					}
-				}
+                {
+                    using var session = queue.OpenSession();
+                    session.Enqueue(new[] { i });
+                    session.Flush();
+                }
 				Assert.AreEqual(1, queue.Internals.CurrentFileNumber);
 			}
 
 			using (var queue = new PersistentQueue(Path, 10))
 			{
 				for (byte i = 0; i < 12; i++)
-				{
-					using (var session = queue.OpenSession())
-					{
-						Assert.AreEqual(i, session.Dequeue()[0]);
-						session.Flush();
-					}
-				}
+                {
+                    using var session = queue.OpenSession();
+                    Assert.AreEqual(i, session.Dequeue()[0]);
+                    session.Flush();
+                }
 			}
 
 			Assert.IsFalse(

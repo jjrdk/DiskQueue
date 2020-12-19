@@ -1,9 +1,9 @@
 // Copyright (c) 2005 - 2008 Ayende Rahien (ayende@ayende.com)
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
-// 
+//
 //     * Redistributions of source code must retain the above copyright notice,
 //     this list of conditions and the following disclaimer.
 //     * Redistributions in binary form must reproduce the above copyright notice,
@@ -12,7 +12,7 @@
 //     * Neither the name of Ayende Rahien nor the names of its
 //     contributors may be used to endorse or promote products derived from this
 //     software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -56,7 +56,7 @@ namespace DiskQueue.Implementation
 
 	    public readonly int MaxFileSize;
 
-		public PersistentQueueImpl(string path, int maxFileSize, bool throwOnConflict)
+		public PersistentQueueImpl(string path, int maxFileSize = Constants._32Megabytes, bool throwOnConflict = true)
 		{
 		    lock(_configLock)
 			{
@@ -130,9 +130,7 @@ namespace DiskQueue.Implementation
 			SetPermissions.TryAllowReadWriteForAll(s);
 		}
 
-		public PersistentQueueImpl(string path) : this(path, Constants._32Megabytes, true) { }
-
-		public int EstimatedCountOfItemsInQueue
+        public int EstimatedCountOfItemsInQueue
 		{
 			get
 			{
@@ -221,7 +219,7 @@ namespace DiskQueue.Implementation
 				CurrentFileNumber += 1;
 				var writer = CreateWriter();
 				// we assume same size messages, or near size messages
-				// that gives us a good heuroistic for creating the size of 
+				// that gives us a good heuroistic for creating the size of
 				// the new file, so it wouldn't be fragmented
 				writer.SetLength(CurrentFilePosition);
 				CurrentFilePosition = 0;
@@ -290,7 +288,7 @@ namespace DiskQueue.Implementation
 				if (first == null)
 					return null;
 				var entry = first.Value;
-				
+
 				if (entry.Data == null)
 				{
 					ReadAhead();
@@ -417,7 +415,7 @@ namespace DiskQueue.Implementation
 									binaryReader.ReadInt32()
 								);
 								txOps.Add(operation);
-								//if we have non enqueue entries, this means 
+								//if we have non enqueue entries, this means
 								// that we have not closed properly, so we need
 								// to trim the log
 								if (operation.Type != OperationType.Enqueue)
@@ -448,7 +446,7 @@ namespace DiskQueue.Implementation
 
 				var count = BitConverter.GetBytes(EstimatedCountOfItemsInQueue);
 				ms.Write(count, 0, count.Length);
-                
+
 			    Entry[] checkedOut;
 			    lock (checkedOutEntries)
 			    {
@@ -523,7 +521,7 @@ namespace DiskQueue.Implementation
         public int[] ApplyTransactionOperationsInMemory(IEnumerable<Operation> operations)
 		{
 			if (operations == null) return Array.Empty<int>();
-			
+
 			foreach (var operation in operations)
 			{
 				switch (operation?.Type)
@@ -585,7 +583,7 @@ namespace DiskQueue.Implementation
 			hasData();
 			if (bytes.Length != 16)
 			{
-				// looks like we have a truncated transaction in this case, we will 
+				// looks like we have a truncated transaction in this case, we will
 				// say that we run into end of stream and let the log trimming to deal with this
 				if (binaryReader.BaseStream.Length == binaryReader.BaseStream.Position)
 				{
@@ -644,10 +642,10 @@ namespace DiskQueue.Implementation
 		private void TrimTransactionLogIfNeeded(long txLogSize)
 		{
 			if (txLogSize < SuggestedMaxTransactionLogSize) return; // it is not big enough to care
-			
+
 			var optimalSize = GetOptimalTransactionLogSize();
 			if (txLogSize < (optimalSize * 2)) return;  // not enough disparity to bother trimming
-			
+
 			FlushTrimmedTransactionLog();
 		}
 

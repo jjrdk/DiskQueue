@@ -21,10 +21,10 @@ namespace DiskQueue
 		/// </summary>
 		int EstimatedCountOfItemsInQueue { get; }
 
-		/// <summary>
-		/// Internal adjustables. Use with caution. Read the source code.
-		/// </summary>
-		IPersistentQueueImpl Internals { get; }
+		///// <summary>
+		///// Internal adjustables. Use with caution. Read the source code.
+		///// </summary>
+		//IPersistentQueueImpl Internals { get; }
 
 		/// <summary>
 		/// Maximum size of files in queue. New files will be rolled-out if this is exceeded.

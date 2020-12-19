@@ -50,25 +50,21 @@ namespace DiskQueue.Tests
 		void AddToQueue(byte[] data)
 		{
 			Thread.Sleep(150);
-			using (var queue = PersistentQueue.WaitFor(SharedStorage, TimeSpan.FromSeconds(30)))
-			using (var session = queue.OpenSession())
-			{
-				session.Enqueue(data);
-				session.Flush();
-			}
-		}
+            using var queue = PersistentQueue.WaitFor(SharedStorage, TimeSpan.FromSeconds(30));
+            using var session = queue.OpenSession();
+            session.Enqueue(data);
+            session.Flush();
+        }
 
 		byte[] ReadQueue()
 		{
 			Thread.Sleep(150);
-			using (var queue = PersistentQueue.WaitFor(SharedStorage, TimeSpan.FromSeconds(30)))
-			using (var session = queue.OpenSession())
-			{
-				var data = session.Dequeue();
-				session.Flush();
-				return data;
-			}
-		}
+            using var queue = PersistentQueue.WaitFor(SharedStorage, TimeSpan.FromSeconds(30));
+            using var session = queue.OpenSession();
+            var data = session.Dequeue();
+            session.Flush();
+            return data;
+        }
 
 		protected string SharedStorage
 		{

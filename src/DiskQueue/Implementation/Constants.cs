@@ -5,7 +5,7 @@ namespace DiskQueue.Implementation
 	/// <summary>
 	/// Magic constants used in the disk queue
 	/// </summary>
-	public static class Constants
+	internal static class Constants
 	{
 		/// <summary> Operation end marker </summary>
 		public static readonly int OperationSeparator = 0x42FEBCA1;
@@ -27,7 +27,6 @@ namespace DiskQueue.Implementation
 		/// <summary> Bytes of end of transaction marker </summary>
 		public static readonly byte[] EndTransactionSeparator = EndTransactionSeparatorGuid.ToByteArray();
 
-        
         /// <summary> 32MiB in bytes </summary>
 	    public const int _32Megabytes = 32*1024*1024;
 	}
@@ -35,7 +34,7 @@ namespace DiskQueue.Implementation
     /// <summary>
     /// List of marker constants
     /// </summary>
-    public enum Marker
+    internal enum Marker
     {
         StartTransaction = 0,
         EndTransaction = -1

@@ -101,16 +101,14 @@ namespace DiskQueue.Tests
 			}
 			using (var queue = new PersistentQueue(Path))
 			{
-				using (var session = queue.OpenSession())
-				{
-					for (int j = 0; j < 10; j++)
-					{
-						session.Dequeue();
-					}
-					Assert.IsNull(session.Dequeue());
-					session.Flush();
-				}
-			}
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 10; j++)
+                {
+                    session.Dequeue();
+                }
+                Assert.IsNull(session.Dequeue());
+                session.Flush();
+            }
 		}
 
 		[Test]
@@ -118,40 +116,38 @@ namespace DiskQueue.Tests
 		{
 			var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
 
-			using (var queue = new PersistentQueue(Path)
-			{
-				SuggestedMaxTransactionLogSize = 32 // single entry
-			})
-			{
-				queue.Internals.ParanoidFlushing = false;
+            using var queue = new PersistentQueue(Path)
+            {
+                SuggestedMaxTransactionLogSize = 32 // single entry
+            };
+            queue.Internals.ParanoidFlushing = false;
 
-				using (var session = queue.OpenSession())
-				{
-					for (int j = 0; j < 20; j++)
-					{
-						session.Enqueue(Guid.NewGuid().ToByteArray());
-					}
-					session.Flush();
-				}
-				// there is no way optimize here, so we should get expected size, even though it is bigger than
-				// what we suggested as the max
-				txLogInfo.Refresh();
-				long txSizeWhenOpen = txLogInfo.Length;
+            using (var session = queue.OpenSession())
+            {
+                for (int j = 0; j < 20; j++)
+                {
+                    session.Enqueue(Guid.NewGuid().ToByteArray());
+                }
+                session.Flush();
+            }
+            // there is no way optimize here, so we should get expected size, even though it is bigger than
+            // what we suggested as the max
+            txLogInfo.Refresh();
+            long txSizeWhenOpen = txLogInfo.Length;
 
-				using (var session = queue.OpenSession())
-				{
-					for (int j = 0; j < 20; j++)
-					{
-						session.Dequeue();
-					}
-					Assert.IsNull(session.Dequeue());
+            using (var session = queue.OpenSession())
+            {
+                for (int j = 0; j < 20; j++)
+                {
+                    session.Dequeue();
+                }
+                Assert.IsNull(session.Dequeue());
 
-					session.Flush();
-				}
-				txLogInfo.Refresh();
-				Assert.Less(txLogInfo.Length, txSizeWhenOpen);
-			}
-		}
+                session.Flush();
+            }
+            txLogInfo.Refresh();
+            Assert.Less(txLogInfo.Length, txSizeWhenOpen);
+        }
 
 		[Test]
 		public void Truncated_transaction_is_ignored_with_default_settings()
@@ -166,15 +162,13 @@ namespace DiskQueue.Tests
 			{
 				queue.Internals.ParanoidFlushing = false;
 
-				using (var session = queue.OpenSession())
-				{
-					for (int j = 0; j < 20; j++)
-					{
-						session.Enqueue(BitConverter.GetBytes(j));
-						session.Flush();
-					}
-				}
-			}
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    session.Enqueue(BitConverter.GetBytes(j));
+                    session.Flush();
+                }
+            }
 
 			using (var txLog = txLogInfo.Open(FileMode.Open))
 			{
@@ -184,16 +178,14 @@ namespace DiskQueue.Tests
 
 			using (var queue = new PersistentQueue(Path))
 			{
-				using (var session = queue.OpenSession())
-				{
-					for (int j = 0; j < 19; j++)
-					{
-						Assert.AreEqual(j, BitConverter.ToInt32(session.Dequeue(), 0));
-					}
-					Assert.IsNull(session.Dequeue());// the last transaction was corrupted
-					session.Flush();
-				}
-			}
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 19; j++)
+                {
+                    Assert.AreEqual(j, BitConverter.ToInt32(session.Dequeue(), 0));
+                }
+                Assert.IsNull(session.Dequeue());// the last transaction was corrupted
+                session.Flush();
+            }
 		}
 
 		[Test]
@@ -207,15 +199,13 @@ namespace DiskQueue.Tests
 				TrimTransactionLogOnDispose = false
 			})
 			{
-				using (var session = queue.OpenSession())
-				{
-					for (int j = 0; j < 20; j++)
-					{
-						session.Enqueue(BitConverter.GetBytes(j));
-						session.Flush();
-					}
-				}
-			}
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    session.Enqueue(BitConverter.GetBytes(j));
+                    session.Flush();
+                }
+            }
 
 			using (var txLog = txLogInfo.Open(FileMode.Open))
 			{
@@ -225,12 +215,10 @@ namespace DiskQueue.Tests
 
 			using (var queue = new PersistentQueue(Path))
 			{
-				using (var session = queue.OpenSession())
-				{
-					Assert.IsNull(session.Dequeue());// the last transaction was corrupted
-					session.Flush();
-				}
-			}
+                using var session = queue.OpenSession();
+                Assert.IsNull(session.Dequeue());// the last transaction was corrupted
+                session.Flush();
+            }
 		}
 
 	    [Test]
@@ -244,15 +232,13 @@ namespace DiskQueue.Tests
 	            TrimTransactionLogOnDispose = false
 	        })
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 20; j++)
-	                {
-	                    session.Enqueue(BitConverter.GetBytes(j));
-	                    session.Flush();
-	                }
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    session.Enqueue(BitConverter.GetBytes(j));
+                    session.Flush();
+                }
+            }
 
 	        using (var txLog = txLogInfo.Open(FileMode.Open))
 	        {
@@ -262,12 +248,10 @@ namespace DiskQueue.Tests
 
 	        using (var queue = new PersistentQueue(Path))
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                Assert.IsNull(session.Dequeue());// the last transaction was corrupted
-	                session.Flush();
-	            }
-	        }
+                using var session = queue.OpenSession();
+                Assert.IsNull(session.Dequeue());// the last transaction was corrupted
+                session.Flush();
+            }
 	    }
 
 	    [Test]
@@ -281,15 +265,13 @@ namespace DiskQueue.Tests
 	            TrimTransactionLogOnDispose = false
 	        })
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 20; j++)
-	                {
-	                    session.Enqueue(BitConverter.GetBytes(j));
-	                    session.Flush();
-	                }
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    session.Enqueue(BitConverter.GetBytes(j));
+                    session.Flush();
+                }
+            }
 
 	        using (var txLog = txLogInfo.Open(FileMode.Open))
 	        {
@@ -299,12 +281,10 @@ namespace DiskQueue.Tests
 
 	        using (var queue = new PersistentQueue(Path))
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                Assert.IsNull(session.Dequeue());// the last transaction was corrupted
-	                session.Flush();
-	            }
-	        }
+                using var session = queue.OpenSession();
+                Assert.IsNull(session.Dequeue());// the last transaction was corrupted
+                session.Flush();
+            }
 	    }
 
 
@@ -318,28 +298,24 @@ namespace DiskQueue.Tests
 	            TrimTransactionLogOnDispose = false
 	        })
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 20; j++)
-	                {
-	                    session.Enqueue(new byte[0]);
-	                    session.Flush();
-	                }
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    session.Enqueue(new byte[0]);
+                    session.Flush();
+                }
+            }
 
 	        using (var queue = new PersistentQueue(Path))
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 20; j++)
-	                {
-	                    Assert.IsEmpty(session.Dequeue());
-	                }
-	                Assert.IsNull(session.Dequeue());
-	                session.Flush();
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    Assert.IsEmpty(session.Dequeue());
+                }
+                Assert.IsNull(session.Dequeue());
+                session.Flush();
+            }
 	    }
         
 	    [Test]
@@ -351,25 +327,21 @@ namespace DiskQueue.Tests
 	            TrimTransactionLogOnDispose = false
 	        })
             {
-                using (var session = queue.OpenSession())
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
                 {
-                    for (int j = 0; j < 20; j++)
-                    {
-                        session.Enqueue(Constants.EndTransactionSeparator); // ???
-                        session.Flush();
-                    }
+                    session.Enqueue(Constants.EndTransactionSeparator); // ???
                     session.Flush();
                 }
+                session.Flush();
             }
 
             using (var queue = new PersistentQueue(Path))
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                Assert.AreEqual(Constants.EndTransactionSeparator, session.Dequeue());
-	                session.Flush();
-	            }
-	        }
+                using var session = queue.OpenSession();
+                Assert.AreEqual(Constants.EndTransactionSeparator, session.Dequeue());
+                session.Flush();
+            }
 	    }
         
 	    [Test]
@@ -381,25 +353,21 @@ namespace DiskQueue.Tests
 	            TrimTransactionLogOnDispose = false
 	        })
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 20; j++)
-	                {
-	                    session.Enqueue(Constants.StartTransactionSeparator); // ???
-	                    session.Flush();
-	                }
-	                session.Flush();
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    session.Enqueue(Constants.StartTransactionSeparator); // ???
+                    session.Flush();
+                }
+                session.Flush();
+            }
 
 	        using (var queue = new PersistentQueue(Path))
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                Assert.AreEqual(Constants.StartTransactionSeparator, session.Dequeue());
-	                session.Flush();
-	            }
-	        }
+                using var session = queue.OpenSession();
+                Assert.AreEqual(Constants.StartTransactionSeparator, session.Dequeue());
+                session.Flush();
+            }
 	    }
         
 	    [Test]
@@ -411,29 +379,25 @@ namespace DiskQueue.Tests
 	            TrimTransactionLogOnDispose = false
 	        })
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                session.Enqueue(new byte[0]);
-	                session.Flush();
-	                for (int j = 0; j < 19; j++)
-	                {
-	                    session.Enqueue(new byte[] {1});
-	                    session.Flush();
-	                }
-	            }
-	        }
+                using var session = queue.OpenSession();
+                session.Enqueue(new byte[0]);
+                session.Flush();
+                for (int j = 0; j < 19; j++)
+                {
+                    session.Enqueue(new byte[] { 1 });
+                    session.Flush();
+                }
+            }
 
 	        using (var queue = new PersistentQueue(Path))
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 20; j++)
-	                {
-	                    Assert.IsNotNull(session.Dequeue());
-	                    session.Flush();
-	                }
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    Assert.IsNotNull(session.Dequeue());
+                    session.Flush();
+                }
+            }
 	    }
 
         
@@ -446,29 +410,25 @@ namespace DiskQueue.Tests
 	            TrimTransactionLogOnDispose = false
 	        })
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 19; j++)
-	                {
-	                    session.Enqueue(new byte[] {1});
-	                    session.Flush();
-	                }
-	                session.Enqueue(new byte[0]);
-	                session.Flush();
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 19; j++)
+                {
+                    session.Enqueue(new byte[] { 1 });
+                    session.Flush();
+                }
+                session.Enqueue(new byte[0]);
+                session.Flush();
+            }
 
 	        using (var queue = new PersistentQueue(Path))
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 20; j++)
-	                {
-	                    Assert.IsNotNull(session.Dequeue());
-	                    session.Flush();
-	                }
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    Assert.IsNotNull(session.Dequeue());
+                    session.Flush();
+                }
+            }
 	    }
 
 	    [Test]
@@ -481,15 +441,13 @@ namespace DiskQueue.Tests
 	            TrimTransactionLogOnDispose = false
 	        })
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 5; j++)
-	                {
-	                    session.Enqueue(new byte[0]);
-	                }
-                    session.Flush();
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 5; j++)
+                {
+                    session.Enqueue(new byte[0]);
                 }
-	        }
+                session.Flush();
+            }
             
 	        using (var txLog = txLogInfo.Open(FileMode.Open))
 	        {
@@ -502,16 +460,14 @@ namespace DiskQueue.Tests
 
 	        using (var queue = new PersistentQueue(Path))
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 10; j++)
-	                {
-	                    Assert.IsEmpty(session.Dequeue());
-	                }
-	                Assert.IsNull(session.Dequeue());
-	                session.Flush();
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 10; j++)
+                {
+                    Assert.IsEmpty(session.Dequeue());
+                }
+                Assert.IsNull(session.Dequeue());
+                session.Flush();
+            }
 	    }
 
         [Test]
@@ -524,15 +480,13 @@ namespace DiskQueue.Tests
 	            TrimTransactionLogOnDispose = false
 	        })
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 5; j++)
-	                {
-	                    session.Enqueue(new byte[0]);
-	                }
-	                session.Flush();
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 5; j++)
+                {
+                    session.Enqueue(new byte[0]);
+                }
+                session.Flush();
+            }
             
 	        using (var txLog = txLogInfo.Open(FileMode.Open))
 	        {
@@ -545,16 +499,14 @@ namespace DiskQueue.Tests
 
 	        using (var queue = new PersistentQueue(Path, Constants._32Megabytes, throwOnConflict: false))
 	        {
-	            using (var session = queue.OpenSession())
-	            {
-	                for (int j = 0; j < 5; j++) // first 5 should be OK
-	                {
-	                    Assert.IsNotNull(session.Dequeue());
-	                }
-	                Assert.IsNull(session.Dequeue()); // duplicated 5 should be silently lost.
-	                session.Flush();
-	            }
-	        }
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 5; j++) // first 5 should be OK
+                {
+                    Assert.IsNotNull(session.Dequeue());
+                }
+                Assert.IsNull(session.Dequeue()); // duplicated 5 should be silently lost.
+                session.Flush();
+            }
 	    }
 
 	    [Test]
@@ -564,15 +516,13 @@ namespace DiskQueue.Tests
 
 			using (var queue = new PersistentQueue(Path))
 			{
-				using (var session = queue.OpenSession())
-				{
-					for (int j = 0; j < 20; j++)
-					{
-						session.Enqueue(BitConverter.GetBytes(j));
-						session.Flush();
-					}
-				}
-			}
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    session.Enqueue(BitConverter.GetBytes(j));
+                    session.Flush();
+                }
+            }
 
 			using (var txLog = txLogInfo.Open(FileMode.Open))
 			{
@@ -599,15 +549,13 @@ namespace DiskQueue.Tests
 			})
 			{
 				queue.Internals.ParanoidFlushing = false;
-				using (var session = queue.OpenSession())
-				{
-					for (int j = 0; j < 20; j++)
-					{
-						session.Enqueue(BitConverter.GetBytes(j));
-						session.Flush();
-					}
-				}
-			}
+                using var session = queue.OpenSession();
+                for (int j = 0; j < 20; j++)
+                {
+                    session.Enqueue(BitConverter.GetBytes(j));
+                    session.Flush();
+                }
+            }
 
 			using (var txLog = txLogInfo.Open(FileMode.Open))
 			{
@@ -621,30 +569,26 @@ namespace DiskQueue.Tests
 				TrimTransactionLogOnDispose = false
 			})
 			{
-				using (var session = queue.OpenSession())
-				{
-					for (int j = 20; j < 40; j++)
-					{
-						session.Enqueue(BitConverter.GetBytes(j));
-					}
-					session.Flush();
-				}
-			}
+                using var session = queue.OpenSession();
+                for (int j = 20; j < 40; j++)
+                {
+                    session.Enqueue(BitConverter.GetBytes(j));
+                }
+                session.Flush();
+            }
 
 			var data = new List<int>();
 			using (var queue = new PersistentQueue(Path))
 			{
-				using (var session = queue.OpenSession())
-				{
-					var dequeue = session.Dequeue();
-					while (dequeue != null)
-					{
-						data.Add(BitConverter.ToInt32(dequeue, 0));
-						dequeue = session.Dequeue();
-					}
-					session.Flush();
-				}
-			}
+                using var session = queue.OpenSession();
+                var dequeue = session.Dequeue();
+                while (dequeue != null)
+                {
+                    data.Add(BitConverter.ToInt32(dequeue, 0));
+                    dequeue = session.Dequeue();
+                }
+                session.Flush();
+            }
 			var expected = 0;
 			foreach (var i in data)
 			{

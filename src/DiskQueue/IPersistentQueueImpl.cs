@@ -10,7 +10,7 @@ namespace DiskQueue
 	/// <para>You should be careful using any of these methods</para>
 	/// <para>Please read the source code before using these methods in production software</para>
 	/// </summary>
-	public interface IPersistentQueueImpl : IDisposable
+	internal interface IPersistentQueueImpl : IDisposable
 	{
 		/// <summary>
 		/// <para>UNSAFE. Incorrect use will result in data loss.</para>

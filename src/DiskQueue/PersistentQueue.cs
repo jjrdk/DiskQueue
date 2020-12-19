@@ -67,7 +67,7 @@ namespace DiskQueue
 		{
 			_queue = new PersistentQueueImpl(storagePath);
 		}
-		
+
 		/// <summary>
 		/// Create or connect to a persistent store at the given storage path.
 		/// Uses specific maximum file size (files will be split if they exceed this size).
@@ -83,7 +83,6 @@ namespace DiskQueue
 		/// <summary>
 		/// Close this queue connection. Does not destroy flushed data.
 		/// </summary>
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "_queue", Justification = "Disposed in an interlock")]
 		public void Dispose()
 		{
 			var local = Interlocked.Exchange(ref _queue, null);
@@ -121,7 +120,7 @@ namespace DiskQueue
 		/// <summary>
 		/// Internal adjustables. Use with caution. Read the source code.
 		/// </summary>
-		public IPersistentQueueImpl Internals { get { return _queue; } }
+		internal IPersistentQueueImpl Internals { get { return _queue; } }
 
 		/// <summary>
 		/// Maximum size of files in queue. New files will be rolled-out if this is exceeded.

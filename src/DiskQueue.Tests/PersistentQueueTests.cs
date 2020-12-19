@@ -65,36 +65,30 @@ namespace DiskQueue.Tests
 
 		[Test]
 		public void Dequeing_from_empty_queue_will_return_null()
-		{
-			using (var queue = new PersistentQueue(Path))
-			using (var session = queue.OpenSession())
-			{
-				Assert.IsNull(session.Dequeue());
-			}
-		}
+        {
+            using var queue = new PersistentQueue(Path);
+            using var session = queue.OpenSession();
+            Assert.IsNull(session.Dequeue());
+        }
 
 		[Test]
 		public void Can_enqueue_data_in_queue()
-		{
-			using (var queue = new PersistentQueue(Path))
-			using (var session = queue.OpenSession())
-			{
-				session.Enqueue(new byte[] { 1, 2, 3, 4 });
-				session.Flush();
-			}
-		}
+        {
+            using var queue = new PersistentQueue(Path);
+            using var session = queue.OpenSession();
+            session.Enqueue(new byte[] { 1, 2, 3, 4 });
+            session.Flush();
+        }
 
 		[Test]
 		public void Can_dequeue_data_from_queue()
-		{
-			using (var queue = new PersistentQueue(Path))
-			using (var session = queue.OpenSession())
-			{
-				session.Enqueue(new byte[] { 1, 2, 3, 4 });
-				session.Flush();
-				CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session.Dequeue());
-			}
-		}
+        {
+            using var queue = new PersistentQueue(Path);
+            using var session = queue.OpenSession();
+            session.Enqueue(new byte[] { 1, 2, 3, 4 });
+            session.Flush();
+            CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, session.Dequeue());
+        }
 
 		[Test]
 		public void Can_enqueue_and_dequeue_data_after_restarting_queue()
@@ -240,14 +234,12 @@ namespace DiskQueue.Tests
 
             for (int i = 0; i < 4; i++)
             {
-                using (var queue = new PersistentQueue(Path))
-                using (var session = queue.OpenSession())
-                {
-                    CollectionAssert.AreEqual(new byte[] { 1 }, session.Dequeue(), "Incorrect order on turn " + (i + 1));
-                    CollectionAssert.AreEqual(new byte[] { 2 }, session.Dequeue(), "Incorrect order on turn " + (i + 1));
-                    CollectionAssert.AreEqual(new byte[] { 3 }, session.Dequeue(), "Incorrect order on turn " + (i + 1));
-                    // Dispose without `session.Flush();`
-                }
+                using var queue = new PersistentQueue(Path);
+                using var session = queue.OpenSession();
+                CollectionAssert.AreEqual(new byte[] { 1 }, session.Dequeue(), "Incorrect order on turn " + (i + 1));
+                CollectionAssert.AreEqual(new byte[] { 2 }, session.Dequeue(), "Incorrect order on turn " + (i + 1));
+                CollectionAssert.AreEqual(new byte[] { 3 }, session.Dequeue(), "Incorrect order on turn " + (i + 1));
+                // Dispose without `session.Flush();`
             }
         }
 	}
