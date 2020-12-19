@@ -77,9 +77,9 @@ namespace DiskQueue.Tests
                 Is.EqualTo("End of file reached while trying to read queue item"));
         }
 
-        static IPersistentQueueImpl PersistentQueueWithMemoryStream(MemoryStream limitedSizeStream)
+        static IPersistentQueue PersistentQueueWithMemoryStream(MemoryStream limitedSizeStream)
         {
-            var queueStub = Substitute.For<IPersistentQueueImpl>();
+            var queueStub = Substitute.For<IPersistentQueue>();
 
             queueStub.WhenForAnyArgs(async x => await x.AcquireWriter(null, null, null).ConfigureAwait(false))
                 .Do(c => CallActionArgument(c, limitedSizeStream).Wait());

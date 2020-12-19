@@ -10,7 +10,7 @@ namespace DiskQueue.Implementation
 
     /// <summary>
 	/// Default persistent queue session.
-	/// <para>You should use <see cref="IPersistentQueueImpl.OpenSession"/> to get a session.</para>
+	/// <para>You should use <see cref="IPersistentQueue.OpenSession"/> to get a session.</para>
 	/// <example>using (var q = PersistentQueue.WaitFor("myQueue")) using (var session = q.OpenSession()) { ... }</example>
 	/// </summary>
 	internal sealed class PersistentQueueSession : IPersistentQueueSession
@@ -18,9 +18,9 @@ namespace DiskQueue.Implementation
         private readonly List<Operation> operations = new List<Operation>();
         private Stream currentStream;
         private readonly int writeBufferSize;
-        private readonly IPersistentQueueImpl queue;
+        private readonly IPersistentQueue queue;
         private readonly List<Stream> streamsToDisposeOnFlush = new List<Stream>();
-        static readonly object _ctorLock = new object();
+        private static readonly object _ctorLock = new object();
         volatile bool disposed;
 
         private readonly List<byte[]> buffer = new List<byte[]>();
@@ -30,10 +30,10 @@ namespace DiskQueue.Implementation
 
         /// <summary>
         /// Create a default persistent queue session.
-        /// <para>You should use <see cref="IPersistentQueueImpl.OpenSession"/> to get a session.</para>
+        /// <para>You should use <see cref="IPersistentQueue.OpenSession"/> to get a session.</para>
         /// <example>using (var q = PersistentQueue.WaitFor("myQueue")) using (var session = q.OpenSession()) { ... }</example>
         /// </summary>
-        public PersistentQueueSession(IPersistentQueueImpl queue, Stream currentStream, int writeBufferSize)
+        public PersistentQueueSession(IPersistentQueue queue, Stream currentStream, int writeBufferSize)
         {
             lock (_ctorLock)
             {

@@ -11,7 +11,7 @@ namespace DiskQueue.Tests
     [TestFixture]
     public class LongTermDequeueTests
     {
-        private IPersistentQueueImpl _q;
+        private IPersistentQueue _q;
         private CancellationTokenSource _source;
 
         [SetUp]

@@ -49,7 +49,7 @@ namespace DiskQueue.Implementation
 	///  - If old file exists, remove new file and rename old file
 	///
 	/// </summary>
-	public static class Atomic
+	internal static class Atomic
 	{
 		static readonly object _lock = new object();
 

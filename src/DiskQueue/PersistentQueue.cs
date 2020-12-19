@@ -34,7 +34,7 @@ namespace DiskQueue.Implementation
 {
     using System.Threading.Tasks;
 
-    internal class PersistentQueue : IPersistentQueueImpl
+    internal class PersistentQueue : IPersistentQueue
     {
         private readonly SemaphoreSlim entriesSemaphore = new SemaphoreSlim(1);
         private readonly SemaphoreSlim writerSemaphore = new SemaphoreSlim(1);
@@ -98,7 +98,7 @@ namespace DiskQueue.Implementation
             }
         }
 
-        public static Task<IPersistentQueueImpl> Create(
+        public static Task<IPersistentQueue> Create(
             string path,
             TimeSpan maxWait,
             int maxFileSite = Constants._32Megabytes,
@@ -108,7 +108,7 @@ namespace DiskQueue.Implementation
             return Create(path, maxFileSite, throwOnConflict, cancellationToken: source.Token);
         }
 
-        public static async Task<IPersistentQueueImpl> Create(
+        public static async Task<IPersistentQueue> Create(
             string path,
             int maxFileSite = Constants._32Megabytes,
             bool throwOnConflict = true,
@@ -526,53 +526,66 @@ namespace DiskQueue.Implementation
         private async Task ReadTransactionLog(CancellationToken cancellationToken)
         {
             var requireTxLogTrimming = false;
-            Atomic.Read(TransactionLog, stream =>
-            {
-                using var binaryReader = new BinaryReader(stream);
-                bool readingTransaction = false;
-                try
-                {
-                    int txCount = 0;
-                    while (true)
+            Atomic.Read(
+                    TransactionLog,
+                    stream =>
                     {
-                        txCount += 1;
-                        // this code ensures that we read the full transaction
-                        // before we start to apply it. The last truncated transaction will be
-                        // ignored automatically.
-                        AssertTransactionSeperator(binaryReader, txCount, Marker.StartTransaction,
-                            () => readingTransaction = true);
-
-                        var opsCount = binaryReader.ReadInt32();
-                        var txOps = new List<Operation>(opsCount);
-                        for (var i = 0; i < opsCount; i++)
+                        using var binaryReader = new BinaryReader(stream);
+                        bool readingTransaction = false;
+                        try
                         {
-                            AssertOperationSeparator(binaryReader);
-                            var operation = new Operation(
-                                (OperationType)binaryReader.ReadByte(),
-                                binaryReader.ReadInt32(),
-                                binaryReader.ReadInt32(),
-                                binaryReader.ReadInt32()
-                            );
-                            txOps.Add(operation);
-                            //if we have non enqueue entries, this means
-                            // that we have not closed properly, so we need
-                            // to trim the log
-                            if (operation.Type != OperationType.Enqueue)
-                                requireTxLogTrimming = true;
+                            int txCount = 0;
+                            while (true)
+                            {
+                                txCount += 1;
+                                // this code ensures that we read the full transaction
+                                // before we start to apply it. The last truncated transaction will be
+                                // ignored automatically.
+                                AssertTransactionSeperator(
+                                    binaryReader,
+                                    txCount,
+                                    Marker.StartTransaction,
+                                    () => readingTransaction = true);
+
+                                var opsCount = binaryReader.ReadInt32();
+                                var txOps = new List<Operation>(opsCount);
+                                for (var i = 0; i < opsCount; i++)
+                                {
+                                    AssertOperationSeparator(binaryReader);
+                                    var operation = new Operation(
+                                        (OperationType) binaryReader.ReadByte(),
+                                        binaryReader.ReadInt32(),
+                                        binaryReader.ReadInt32(),
+                                        binaryReader.ReadInt32());
+                                    txOps.Add(operation);
+                                    //if we have non enqueue entries, this means
+                                    // that we have not closed properly, so we need
+                                    // to trim the log
+                                    if (operation.Type != OperationType.Enqueue)
+                                    {
+                                        requireTxLogTrimming = true;
+                                    }
+                                }
+
+                                // check that the end marker is in place
+                                AssertTransactionSeperator(binaryReader, txCount, Marker.EndTransaction, () => { });
+                                readingTransaction = false;
+                                ApplyTransactionOperations(txOps);
+                            }
                         }
-                        // check that the end marker is in place
-                        AssertTransactionSeperator(binaryReader, txCount, Marker.EndTransaction, () => { });
-                        readingTransaction = false;
-                        ApplyTransactionOperations(txOps);
-                    }
-                }
-                catch (EndOfStreamException)
-                {
-                    // we have a truncated transaction, need to clear that
-                    if (readingTransaction) requireTxLogTrimming = true;
-                }
-            });
-            if (requireTxLogTrimming) { await FlushTrimmedTransactionLog(cancellationToken).ConfigureAwait(false); }
+                        catch (EndOfStreamException)
+                        {
+                            // we have a truncated transaction, need to clear that
+                            if (readingTransaction)
+                            {
+                                requireTxLogTrimming = true;
+                            }
+                        }
+                    });
+            if (requireTxLogTrimming)
+            {
+                await FlushTrimmedTransactionLog(cancellationToken).ConfigureAwait(false);
+            }
         }
 
         private async Task FlushTrimmedTransactionLog(CancellationToken cancellationToken)
@@ -769,7 +782,7 @@ namespace DiskQueue.Implementation
                 ThrowIfStrict("Unexpected data in transaction log. Expected to get transaction separator but got unknown data. Tx #" + txCount);
             }
         }
-        
+
         private void ReadMetaState()
         {
             Atomic.Read(Meta, stream =>

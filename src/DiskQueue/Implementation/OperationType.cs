@@ -3,7 +3,7 @@ namespace DiskQueue.Implementation
 	/// <summary>
 	/// Type of change applicable to a queue
 	/// </summary>
-	public enum OperationType : byte
+	internal enum OperationType : byte
 	{
 		/// <summary> Add new data to the queue </summary>
 		Enqueue = 1,

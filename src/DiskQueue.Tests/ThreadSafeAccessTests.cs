@@ -19,7 +19,7 @@ namespace DiskQueue.Tests
             const int target = 100;
             var rnd = new Random();
 
-            IPersistentQueueImpl _subject = await PersistentQueue.Create("queue_a").ConfigureAwait(false);
+            IPersistentQueue _subject = await PersistentQueue.Create("queue_a").ConfigureAwait(false);
             var t1 = Task.Run(
                 async () =>
                 {

@@ -29,7 +29,7 @@ namespace DiskQueue.Implementation
     using System;
     using System.Text;
 
-    public class UnableToSetupException : Exception
+    internal class UnableToSetupException : Exception
     {
         public UnableToSetupException(string message) : base(message)
         {
@@ -39,7 +39,7 @@ namespace DiskQueue.Implementation
     /// <summary>
     /// Exception thrown when data can't be persisted
     /// </summary>
-    public class PendingWriteException : Exception
+    internal class PendingWriteException : Exception
     {
         private readonly Exception[] pendingWritesExceptions;
 
