@@ -5,7 +5,7 @@ using System.Threading;
 
 namespace DiskQueue.Implementation
 {
-    using System.Diagnostics;
+    using System.Security.Cryptography;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -77,28 +77,9 @@ namespace DiskQueue.Implementation
         private async Task<long> AsyncWriteToStream(Stream stream)
         {
             byte[] data = ConcatenateBufferAndAddIndividualOperations(stream);
-            //var resetEvent = new ManualResetEvent(false);
-            //pendingWritesHandles.Add(resetEvent);
             long positionAfterWrite = stream.Position + data.Length;
             await stream.WriteAsync(data, 0, data.Length).ConfigureAwait(false);
-            //stream.BeginWrite(data, 0, data.Length, delegate(IAsyncResult ar)
-            //{
-            //	try
-            //	{
-            //		stream.EndWrite(ar);
-            //	}
-            //	catch (Exception e)
-            //	{
-            //		lock (pendingWritesFailures)
-            //		{
-            //			pendingWritesFailures.Add(e);
-            //		}
-            //	}
-            //	finally
-            //	{
-            //		resetEvent.Set();
-            //	}
-            //}, null);
+
             return positionAfterWrite;
         }
 
@@ -156,7 +137,6 @@ namespace DiskQueue.Implementation
         {
             try
             {
-                //WaitForPendingWrites();
                 await AsyncFlushBuffer(cancellationToken).ConfigureAwait(false);
             }
             finally

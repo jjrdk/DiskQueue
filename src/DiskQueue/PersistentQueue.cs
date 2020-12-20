@@ -62,7 +62,9 @@ namespace DiskQueue.Implementation
             bool throwOnConflict,
             int maxTransactionLogSize,
             bool trimTransactionLogOnDispose,
-            bool paranoidFlushing)
+            bool paranoidFlushing,
+            int suggestedReadBuffer,
+            int suggestedWriteBuffer)
         {
             this.trimTransactionLogOnDispose = trimTransactionLogOnDispose;
             lock (ConfigLock)
@@ -71,8 +73,8 @@ namespace DiskQueue.Implementation
                 this.trimTransactionLogOnDispose = trimTransactionLogOnDispose;
                 this.paranoidFlushing = paranoidFlushing;
                 suggestedMaxTransactionLogSize = maxTransactionLogSize;
-                suggestedReadBuffer = 1024 * 1024;
-                suggestedWriteBuffer = 1024 * 1024;
+                this.suggestedReadBuffer = suggestedReadBuffer;
+                this.suggestedWriteBuffer = suggestedWriteBuffer;
                 this.throwOnConflict = throwOnConflict;
 
                 this.maxFileSize = maxFileSize;
@@ -88,7 +90,8 @@ namespace DiskQueue.Implementation
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    throw new UnauthorizedAccessException("Directory \"" + path + "\" does not exist or is missing write permissions");
+                    throw new UnauthorizedAccessException(
+                        $"Directory \"{path}\" does not exist or is missing write permissions");
                 }
                 catch (IOException e)
                 {
@@ -102,10 +105,24 @@ namespace DiskQueue.Implementation
             string path,
             TimeSpan maxWait,
             int maxFileSite = Constants._32Megabytes,
-            bool throwOnConflict = true)
+            bool throwOnConflict = true,
+            int suggestedMaxTransactionLogSize = Constants._32Megabytes,
+            bool trimTransactionLogOnDispose = true,
+            bool paranoidFlushing = true,
+            int suggestedReadBuffer = Constants._1Megabyte,
+            int suggestedWriteBuffer = Constants._1Megabyte)
         {
             using var source = new CancellationTokenSource(maxWait);
-            return Create(path, maxFileSite, throwOnConflict, cancellationToken: source.Token);
+            return Create(
+                path,
+                maxFileSite,
+                throwOnConflict,
+                suggestedMaxTransactionLogSize,
+                trimTransactionLogOnDispose,
+                paranoidFlushing,
+                suggestedReadBuffer,
+                suggestedWriteBuffer,
+                source.Token);
         }
 
         public static async Task<IPersistentQueue> Create(
@@ -115,6 +132,8 @@ namespace DiskQueue.Implementation
             int suggestedMaxTransactionLogSize = Constants._32Megabytes,
             bool trimTransactionLogOnDispose = true,
             bool paranoidFlushing = true,
+            int suggestedReadBuffer = Constants._1Megabyte,
+            int suggestedWriteBuffer = Constants._1Megabyte,
             CancellationToken cancellationToken = default)
         {
             while (true)
@@ -131,7 +150,9 @@ namespace DiskQueue.Implementation
                             throwOnConflict,
                             suggestedMaxTransactionLogSize,
                             trimTransactionLogOnDispose,
-                            paranoidFlushing);
+                            paranoidFlushing,
+                            suggestedReadBuffer,
+                            suggestedWriteBuffer);
 
                         try
                         {
@@ -553,7 +574,7 @@ namespace DiskQueue.Implementation
                                 {
                                     AssertOperationSeparator(binaryReader);
                                     var operation = new Operation(
-                                        (OperationType) binaryReader.ReadByte(),
+                                        (OperationType)binaryReader.ReadByte(),
                                         binaryReader.ReadInt32(),
                                         binaryReader.ReadInt32(),
                                         binaryReader.ReadInt32());
@@ -798,7 +819,6 @@ namespace DiskQueue.Implementation
                 }
             });
         }
-
 
         private async Task TrimTransactionLogIfNeeded(long txLogSize, CancellationToken cancellationToken)
         {

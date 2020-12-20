@@ -14,7 +14,7 @@ namespace DiskQueue.Tests
     {
         [Test,
          Description(
-             "With a mid-range SSD, this is some 20x slower " + "than with a single flush (depends on disk speed)")]
+             "With a mid-range SSD, this is some 20x slower than with a single flush (depends on disk speed)")]
         public async Task Enqueue_million_items_with_100_flushes()
         {
             await using var queue = await PersistentQueue.Create(Path).ConfigureAwait(false);

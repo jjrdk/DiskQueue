@@ -29,7 +29,9 @@ namespace DiskQueue.Implementation
 
         /// <summary> 32MiB in bytes </summary>
 	    public const int _32Megabytes = 32*1024*1024;
-	}
+
+        public const int _1Megabyte = 1024 * 1024;
+    }
 
     /// <summary>
     /// List of marker constants
