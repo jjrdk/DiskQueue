@@ -31,7 +31,7 @@ namespace DiskQueue
         /// <param name="cancellationToken"></param>
         Task AcquireWriter(
             Stream stream,
-            Func<Stream, Task<long>> action,
+            Func<Stream, CancellationToken, Task<long>> action,
             Action<Stream> onReplaceStream,
             CancellationToken cancellationToken = default);
 

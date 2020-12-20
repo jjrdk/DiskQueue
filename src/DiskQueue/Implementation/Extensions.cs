@@ -13,7 +13,7 @@ namespace DiskQueue.Implementation
 		/// </summary>
 		public static T GetValueOrDefault<T, K>(this IDictionary<K, T> self, K key)
 		{
-			return self.TryGetValue(key, out var value) == false ? default(T) : value;
+			return self.TryGetValue(key, out var value) == false ? default : value;
 		}
 	}
 }

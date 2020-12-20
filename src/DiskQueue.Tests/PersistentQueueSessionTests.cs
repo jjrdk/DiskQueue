@@ -8,6 +8,7 @@ using System.IO;
 
 namespace DiskQueue.Tests
 {
+    using System.Threading;
     using System.Threading.Tasks;
 
     [TestFixture]
@@ -22,7 +23,7 @@ namespace DiskQueue.Tests
             var pendingWriteException = Assert.ThrowsAsync<AggregateException>(
                 async () =>
                 {
-                    using var session = new PersistentQueueSession(queueStub, limitedSizeStream, 1024 * 1024);
+                    using var session = new PersistentQueueSession(queueStub, limitedSizeStream, 1024 * 1024, null);
                     await session.Enqueue(new byte[64 * 1024 * 1024 + 1]).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
                 });
@@ -41,7 +42,7 @@ namespace DiskQueue.Tests
             var notSupportedException = Assert.ThrowsAsync<AggregateException>(
                 async () =>
                 {
-                    using var session = new PersistentQueueSession(queueStub, limitedSizeStream, 1024 * 1024);
+                    using var session = new PersistentQueueSession(queueStub, limitedSizeStream, 1024 * 1024, null);
                     await session.Enqueue(new byte[64]).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
                 });
@@ -52,7 +53,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task If_data_stream_is_truncated_will_raise_error()
         {
-          await  using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
@@ -77,7 +78,7 @@ namespace DiskQueue.Tests
                 Is.EqualTo("End of file reached while trying to read queue item"));
         }
 
-        static IPersistentQueue PersistentQueueWithMemoryStream(MemoryStream limitedSizeStream)
+        private static IPersistentQueue PersistentQueueWithMemoryStream(MemoryStream limitedSizeStream)
         {
             var queueStub = Substitute.For<IPersistentQueue>();
 
@@ -86,10 +87,10 @@ namespace DiskQueue.Tests
             return queueStub;
         }
 
-        static Task<long> CallActionArgument(CallInfo c, MemoryStream ms)
+        private static Task<long> CallActionArgument(CallInfo c, MemoryStream ms)
         {
-            var func = (Func<Stream, Task<long>>)c.Args()[1];
-            return func(ms);
+            var func = (Func<Stream, CancellationToken, Task<long>>)c.Args()[1];
+            return func(ms, CancellationToken.None);
         }
     }
 }

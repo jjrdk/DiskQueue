@@ -323,7 +323,7 @@ namespace DiskQueue.Tests
                 using var session = queue.OpenSession();
                 for (int j = 0; j < 20; j++)
                 {
-                    await session.Enqueue(Constants.EndTransactionSeparator).ConfigureAwait(false); // ???
+                    await session.Enqueue(Constants.EndTransactionSeparator.ToArray()).ConfigureAwait(false); // ???
                     await session.Flush().ConfigureAwait(false);
                 }
 
@@ -333,7 +333,7 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                Assert.AreEqual(Constants.EndTransactionSeparator, await session.Dequeue());
+                Assert.AreEqual(Constants.EndTransactionSeparator.ToArray(), await session.Dequeue());
                 await session.Flush().ConfigureAwait(false);
             }
         }
@@ -347,7 +347,7 @@ namespace DiskQueue.Tests
                 using var session = queue.OpenSession();
                 for (int j = 0; j < 20; j++)
                 {
-                    await session.Enqueue(Constants.StartTransactionSeparator).ConfigureAwait(false); // ???
+                    await session.Enqueue(Constants.StartTransactionSeparator.ToArray()).ConfigureAwait(false); // ???
                     await session.Flush().ConfigureAwait(false);
                 }
 
@@ -357,7 +357,7 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                Assert.AreEqual(Constants.StartTransactionSeparator, await session.Dequeue());
+                Assert.AreEqual(Constants.StartTransactionSeparator.ToArray(), await session.Dequeue());
                 await session.Flush().ConfigureAwait(false);
             }
         }
@@ -477,7 +477,7 @@ namespace DiskQueue.Tests
                 var buf = new byte[(int)txLog.Length];
                 txLog.Read(buf, 0, (int)txLog.Length);
                 txLog.Write(buf, 0, buf.Length - 16); // new session, but with missing end marker
-                txLog.Write(Constants.StartTransactionSeparator, 0, 16);
+                txLog.Write(Constants.StartTransactionSeparator.Span);
                 txLog.Flush();
             }
 

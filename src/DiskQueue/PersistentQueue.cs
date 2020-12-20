@@ -24,15 +24,16 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-
-namespace DiskQueue.Implementation
+namespace DiskQueue
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Security.Cryptography;
+    using System.Threading;
     using System.Threading.Tasks;
+    using Implementation;
 
     internal class PersistentQueue : IPersistentQueue
     {
@@ -48,7 +49,7 @@ namespace DiskQueue.Implementation
         private static readonly object ConfigLock = new object();
         private volatile bool disposed;
         private FileStream fileLock;
-
+        private readonly SymmetricAlgorithm algo;
         private readonly bool trimTransactionLogOnDispose;
         private readonly int suggestedReadBuffer;
         private readonly int suggestedWriteBuffer;
@@ -64,9 +65,11 @@ namespace DiskQueue.Implementation
             bool trimTransactionLogOnDispose,
             bool paranoidFlushing,
             int suggestedReadBuffer,
-            int suggestedWriteBuffer)
+            int suggestedWriteBuffer,
+            SymmetricAlgorithm algo)
         {
             this.trimTransactionLogOnDispose = trimTransactionLogOnDispose;
+            this.algo = algo;
             lock (ConfigLock)
             {
                 disposed = true;
@@ -110,7 +113,8 @@ namespace DiskQueue.Implementation
             bool trimTransactionLogOnDispose = true,
             bool paranoidFlushing = true,
             int suggestedReadBuffer = Constants._1Megabyte,
-            int suggestedWriteBuffer = Constants._1Megabyte)
+            int suggestedWriteBuffer = Constants._1Megabyte,
+            SymmetricAlgorithm algo = null)
         {
             using var source = new CancellationTokenSource(maxWait);
             return Create(
@@ -122,6 +126,7 @@ namespace DiskQueue.Implementation
                 paranoidFlushing,
                 suggestedReadBuffer,
                 suggestedWriteBuffer,
+                algo,
                 source.Token);
         }
 
@@ -134,6 +139,7 @@ namespace DiskQueue.Implementation
             bool paranoidFlushing = true,
             int suggestedReadBuffer = Constants._1Megabyte,
             int suggestedWriteBuffer = Constants._1Megabyte,
+            SymmetricAlgorithm algo = null,
             CancellationToken cancellationToken = default)
         {
             while (true)
@@ -152,7 +158,8 @@ namespace DiskQueue.Implementation
                             trimTransactionLogOnDispose,
                             paranoidFlushing,
                             suggestedReadBuffer,
-                            suggestedWriteBuffer);
+                            suggestedWriteBuffer,
+                            algo);
 
                         try
                         {
@@ -319,7 +326,7 @@ namespace DiskQueue.Implementation
 
         public async Task AcquireWriter(
             Stream stream,
-            Func<Stream, Task<long>> action,
+            Func<Stream, CancellationToken, Task<long>> action,
             Action<Stream> onReplaceStream,
             CancellationToken cancellationToken = default)
         {
@@ -333,7 +340,7 @@ namespace DiskQueue.Implementation
                     stream.Position = CurrentFilePosition;
                 }
 
-                CurrentFilePosition = await action(stream).ConfigureAwait(false);
+                CurrentFilePosition = await action(stream, cancellationToken).ConfigureAwait(false);
                 if (CurrentFilePosition < maxFileSize) return;
 
                 CurrentFileNumber += 1;
@@ -358,7 +365,7 @@ namespace DiskQueue.Implementation
                 return;
             }
 
-            byte[] transactionBuffer = await GenerateTransactionBuffer(operations).ConfigureAwait(false);
+            byte[] transactionBuffer = await GenerateTransactionBuffer(operations, cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -366,7 +373,7 @@ namespace DiskQueue.Implementation
                 long txLogSize;
                 await using (var stream = WaitForTransactionLog(transactionBuffer))
                 {
-                    await stream.WriteAsync(transactionBuffer, 0, transactionBuffer.Length, cancellationToken).ConfigureAwait(false);
+                    await stream.WriteAsync(transactionBuffer, cancellationToken).ConfigureAwait(false);
                     txLogSize = stream.Position;
                     await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
@@ -509,11 +516,13 @@ namespace DiskQueue.Implementation
                 FileMode.OpenOrCreate,
                 FileAccess.Read,
                 FileShare.ReadWrite)
-            { Position = firstEntry.Start };
+            {
+                Position = firstEntry.Start
+            };
             var totalRead = 0;
             do
             {
-                var bytesRead = await reader.ReadAsync(buffer, totalRead, buffer.Length - totalRead, cancellationToken)
+                var bytesRead = await reader.ReadAsync(buffer.AsMemory(totalRead, buffer.Length - totalRead), cancellationToken)
                     .ConfigureAwait(false);
                 if (bytesRead == 0)
                 {
@@ -529,7 +538,7 @@ namespace DiskQueue.Implementation
 
         public IPersistentQueueSession OpenSession()
         {
-            return new PersistentQueueSession(this, CreateWriter(), suggestedWriteBuffer);
+            return new PersistentQueueSession(this, CreateWriter(), suggestedWriteBuffer, algo);
         }
 
         public void Reinstate(IEnumerable<Operation> reinstatedOperations)
@@ -612,10 +621,10 @@ namespace DiskQueue.Implementation
         private async Task FlushTrimmedTransactionLog(CancellationToken cancellationToken)
         {
             await using var ms = new MemoryStream();
-            await ms.WriteAsync(Constants.StartTransactionSeparator, 0, Constants.StartTransactionSeparator.Length, cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(Constants.StartTransactionSeparator, cancellationToken).ConfigureAwait(false);
 
             var count = BitConverter.GetBytes(EstimatedCountOfItemsInQueue);
-            await ms.WriteAsync(count, 0, count.Length, cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(count, cancellationToken).ConfigureAwait(false);
 
             Entry[] checkedOut;
             lock (checkedOutEntries)
@@ -624,7 +633,7 @@ namespace DiskQueue.Implementation
             }
             foreach (var entry in checkedOut)
             {
-                await WriteEntryToTransactionLog(ms, entry, OperationType.Enqueue).ConfigureAwait(false);
+                await WriteEntryToTransactionLog(ms, entry, OperationType.Enqueue, cancellationToken).ConfigureAwait(false);
             }
 
             Entry[] listedEntries;
@@ -640,9 +649,9 @@ namespace DiskQueue.Implementation
 
             foreach (var entry in listedEntries)
             {
-                await WriteEntryToTransactionLog(ms, entry, OperationType.Enqueue).ConfigureAwait(false);
+                await WriteEntryToTransactionLog(ms, entry, OperationType.Enqueue, cancellationToken).ConfigureAwait(false);
             }
-            await ms.WriteAsync(Constants.EndTransactionSeparator, 0, Constants.EndTransactionSeparator.Length, cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(Constants.EndTransactionSeparator, cancellationToken).ConfigureAwait(false);
             await ms.FlushAsync(cancellationToken).ConfigureAwait(false);
             var transactionBuffer = ms.ToArray();
             Atomic.Write(TransactionLog, stream =>
@@ -671,21 +680,21 @@ namespace DiskQueue.Implementation
             return output.ToArray();
         }
 
-        private static async Task WriteEntryToTransactionLog(Stream ms, Entry entry, OperationType operationType)
+        private static async Task WriteEntryToTransactionLog(Stream ms, Entry entry, OperationType operationType, CancellationToken cancellationToken)
         {
-            await ms.WriteAsync(Constants.OperationSeparatorBytes, 0, Constants.OperationSeparatorBytes.Length)
+            await ms.WriteAsync(Constants.OperationSeparatorBytes, cancellationToken)
                 .ConfigureAwait(false);
 
             ms.WriteByte((byte)operationType);
 
             var fileNumber = BitConverter.GetBytes(entry.FileNumber);
-            await ms.WriteAsync(fileNumber, 0, fileNumber.Length).ConfigureAwait(false);
+            await ms.WriteAsync(fileNumber, cancellationToken).ConfigureAwait(false);
 
             var start = BitConverter.GetBytes(entry.Start);
-            await ms.WriteAsync(start, 0, start.Length).ConfigureAwait(false);
+            await ms.WriteAsync(start, cancellationToken).ConfigureAwait(false);
 
             var length = BitConverter.GetBytes(entry.Length);
-            await ms.WriteAsync(length, 0, length.Length).ConfigureAwait(false);
+            await ms.WriteAsync(length, cancellationToken).ConfigureAwait(false);
         }
 
         private void AssertOperationSeparator(BinaryReader reader)
@@ -709,7 +718,7 @@ namespace DiskQueue.Implementation
                             var entryToAdd = new Entry(operation);
                             entries.AddLast(entryToAdd);
 
-                            var itemCountAddition = countOfItemsPerFile.GetValueOrDefault(entryToAdd.FileNumber);
+                            var itemCountAddition = Extensions.GetValueOrDefault(countOfItemsPerFile, entryToAdd.FileNumber);
                             countOfItemsPerFile[entryToAdd.FileNumber] = itemCountAddition + 1;
                         }
                         break;
@@ -717,7 +726,7 @@ namespace DiskQueue.Implementation
                     case OperationType.Dequeue:
                         var entryToRemove = new Entry(operation);
                         lock (checkedOutEntries) { checkedOutEntries.Remove(entryToRemove); }
-                        var itemCountRemoval = countOfItemsPerFile.GetValueOrDefault(entryToRemove.FileNumber);
+                        var itemCountRemoval = Extensions.GetValueOrDefault(countOfItemsPerFile, entryToRemove.FileNumber);
                         countOfItemsPerFile[entryToRemove.FileNumber] = itemCountRemoval - 1;
                         break;
 
@@ -856,21 +865,21 @@ namespace DiskQueue.Implementation
             }
         }
 
-        private static async Task<byte[]> GenerateTransactionBuffer(ICollection<Operation> operations)
+        private static async Task<byte[]> GenerateTransactionBuffer(ICollection<Operation> operations, CancellationToken cancellationToken)
         {
             await using var ms = new MemoryStream();
-            await ms.WriteAsync(Constants.StartTransactionSeparator, 0, Constants.StartTransactionSeparator.Length).ConfigureAwait(false);
+            await ms.WriteAsync(Constants.StartTransactionSeparator, cancellationToken).ConfigureAwait(false);
 
             var count = BitConverter.GetBytes(operations.Count);
-            await ms.WriteAsync(count, 0, count.Length).ConfigureAwait(false);
+            await ms.WriteAsync(count, cancellationToken).ConfigureAwait(false);
 
             foreach (var operation in operations)
             {
-                await WriteEntryToTransactionLog(ms, new Entry(operation), operation.Type).ConfigureAwait(false);
+                await WriteEntryToTransactionLog(ms, new Entry(operation), operation.Type, cancellationToken).ConfigureAwait(false);
             }
-            await ms.WriteAsync(Constants.EndTransactionSeparator, 0, Constants.EndTransactionSeparator.Length).ConfigureAwait(false);
+            await ms.WriteAsync(Constants.EndTransactionSeparator, cancellationToken).ConfigureAwait(false);
 
-            await ms.FlushAsync().ConfigureAwait(false);
+            await ms.FlushAsync(cancellationToken).ConfigureAwait(false);
             var transactionBuffer = ms.ToArray();
             return transactionBuffer;
         }

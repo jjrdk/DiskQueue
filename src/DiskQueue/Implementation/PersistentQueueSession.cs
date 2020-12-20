@@ -1,31 +1,29 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-
 namespace DiskQueue.Implementation
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Threading;
     using System.Security.Cryptography;
     using System.Threading.Tasks;
 
     /// <summary>
-	/// Default persistent queue session.
-	/// <para>You should use <see cref="IPersistentQueue.OpenSession"/> to get a session.</para>
-	/// <example>using (var q = PersistentQueue.WaitFor("myQueue")) using (var session = q.OpenSession()) { ... }</example>
-	/// </summary>
-	internal sealed class PersistentQueueSession : IPersistentQueueSession
+    /// Default persistent queue session.
+    /// <para>You should use <see cref="IPersistentQueue.OpenSession"/> to get a session.</para>
+    /// <example>using (var q = PersistentQueue.WaitFor("myQueue")) using (var session = q.OpenSession()) { ... }</example>
+    /// </summary>
+    internal sealed class PersistentQueueSession : IPersistentQueueSession
     {
+        private readonly SymmetricAlgorithm algo;
         private readonly List<Operation> operations = new List<Operation>();
         private Stream currentStream;
         private readonly int writeBufferSize;
         private readonly IPersistentQueue queue;
         private readonly List<Stream> streamsToDisposeOnFlush = new List<Stream>();
-        private static readonly object _ctorLock = new object();
-        volatile bool disposed;
-
+        private static readonly object CtorLock = new object();
+        private volatile bool disposed;
         private readonly List<byte[]> buffer = new List<byte[]>();
         private int bufferSize;
-
         private const int MinSizeThatMakeAsyncWritePractical = 64 * 1024;
 
         /// <summary>
@@ -33,14 +31,22 @@ namespace DiskQueue.Implementation
         /// <para>You should use <see cref="IPersistentQueue.OpenSession"/> to get a session.</para>
         /// <example>using (var q = PersistentQueue.WaitFor("myQueue")) using (var session = q.OpenSession()) { ... }</example>
         /// </summary>
-        public PersistentQueueSession(IPersistentQueue queue, Stream currentStream, int writeBufferSize)
+        public PersistentQueueSession(
+            IPersistentQueue queue,
+            Stream currentStream,
+            int writeBufferSize,
+            SymmetricAlgorithm algo)
         {
-            lock (_ctorLock)
+            this.algo = algo;
+            lock (CtorLock)
             {
                 this.queue = queue;
                 this.currentStream = currentStream;
                 if (writeBufferSize < MinSizeThatMakeAsyncWritePractical)
+                {
                     writeBufferSize = MinSizeThatMakeAsyncWritePractical;
+                }
+
                 this.writeBufferSize = writeBufferSize;
                 disposed = false;
             }
@@ -51,34 +57,44 @@ namespace DiskQueue.Implementation
         /// </summary>
         public async Task Enqueue(byte[] data, CancellationToken cancellationToken = default)
         {
-            buffer.Add(data);
-            bufferSize += data.Length;
+            if (algo != null)
+            {
+                await EnqueueEncrypted(data, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                buffer.Add(data);
+                bufferSize += data.Length;
+            }
+
             if (bufferSize > writeBufferSize)
             {
-                await AsyncFlushBuffer(cancellationToken).ConfigureAwait(false);
+                await queue.AcquireWriter(currentStream, AsyncWriteToStream, OnReplaceStream, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
-        private Task AsyncFlushBuffer(CancellationToken cancellationToken)
+        private async Task EnqueueEncrypted(byte[] data, CancellationToken cancellationToken)
         {
-            return queue.AcquireWriter(currentStream, AsyncWriteToStream, OnReplaceStream, cancellationToken);
+            await using var memoryStream = new MemoryStream();
+            await using (var cs = new CryptoStream(memoryStream, algo.CreateEncryptor(), CryptoStreamMode.Write, true))
+            {
+                await cs.WriteAsync(data.AsMemory(0, data.Length), cancellationToken).ConfigureAwait(false);
+                await cs.FlushAsync(cancellationToken).ConfigureAwait(false);
+                await cs.FlushFinalBlockAsync(cancellationToken).ConfigureAwait(false);
+                cs.Close();
+            }
+
+            var toAdd = memoryStream.ToArray();
+            buffer.Add(toAdd);
+            bufferSize += toAdd.Length;
         }
 
-        //private void SyncFlushBuffer()
-        //{
-        //	queue.AcquireWriter(currentStream, stream =>
-        //	{
-        //		byte[] data = ConcatenateBufferAndAddIndividualOperations(stream);
-        //		stream.Write(data, 0, data.Length);
-        //		return stream.Position;
-        //	}, OnReplaceStream);
-        //}
-
-        private async Task<long> AsyncWriteToStream(Stream stream)
+        private async Task<long> AsyncWriteToStream(Stream stream, CancellationToken cancellationToken)
         {
             byte[] data = ConcatenateBufferAndAddIndividualOperations(stream);
             long positionAfterWrite = stream.Position + data.Length;
-            await stream.WriteAsync(data, 0, data.Length).ConfigureAwait(false);
+            await stream.WriteAsync(data, cancellationToken).ConfigureAwait(false);
 
             return positionAfterWrite;
         }
@@ -90,16 +106,12 @@ namespace DiskQueue.Implementation
             var index = 0;
             foreach (var bytes in buffer)
             {
-                operations.Add(new Operation(
-                    OperationType.Enqueue,
-                    queue.CurrentFileNumber,
-                    start,
-                    bytes.Length
-                ));
+                operations.Add(new Operation(OperationType.Enqueue, queue.CurrentFileNumber, start, bytes.Length));
                 Buffer.BlockCopy(bytes, 0, data, index, bytes.Length);
                 start += bytes.Length;
                 index += bytes.Length;
             }
+
             bufferSize = 0;
             buffer.Clear();
             return data;
@@ -124,6 +136,19 @@ namespace DiskQueue.Implementation
             }
 
             operations.Add(new Operation(OperationType.Dequeue, entry.FileNumber, entry.Start, entry.Length));
+            if (algo != null)
+            {
+                await using var outputStream = new MemoryStream();
+                await using var dataStream = new MemoryStream(entry.Data);
+                await using var cryptoStream = new CryptoStream(
+                    dataStream,
+                    algo.CreateDecryptor(),
+                    CryptoStreamMode.Read);
+                await cryptoStream.CopyToAsync(outputStream, cancellationToken).ConfigureAwait(false);
+                await cryptoStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                return outputStream.ToArray();
+            }
+
             return entry.Data;
         }
 
@@ -137,7 +162,8 @@ namespace DiskQueue.Implementation
         {
             try
             {
-                await AsyncFlushBuffer(cancellationToken).ConfigureAwait(false);
+                await queue.AcquireWriter(currentStream, AsyncWriteToStream, OnReplaceStream, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -146,55 +172,27 @@ namespace DiskQueue.Implementation
                     await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                     await stream.DisposeAsync().ConfigureAwait(false);
                 }
+
                 streamsToDisposeOnFlush.Clear();
             }
+
             await currentStream.FlushAsync(cancellationToken).ConfigureAwait(false);
             await queue.CommitTransaction(operations, cancellationToken).ConfigureAwait(false);
             operations.Clear();
         }
-
-        //private void WaitForPendingWrites()
-        //{
-        //    while (pendingWritesHandles.Count != 0)
-        //    {
-        //        var handles = pendingWritesHandles.Take(64).ToArray();
-        //        foreach (var handle in handles)
-        //        {
-        //            pendingWritesHandles.Remove(handle);
-        //        }
-        //        WaitHandle.WaitAll(handles);
-        //        foreach (var handle in handles)
-        //        {
-        //            handle.Close();
-        //        }
-        //        AssertNoPendingWritesFailures();
-        //    }
-        //}
-
-        //private void AssertNoPendingWritesFailures()
-        //{
-        //    lock (pendingWritesFailures)
-        //    {
-        //        if (pendingWritesFailures.Count == 0)
-        //            return;
-
-        //        var array = pendingWritesFailures.ToArray();
-        //        pendingWritesFailures.Clear();
-        //        throw new PendingWriteException(array);
-        //    }
-        //}
 
         /// <summary>
         /// Close session, restoring any non-flushed operations
         /// </summary>
         public void Dispose()
         {
-            lock (_ctorLock)
+            lock (CtorLock)
             {
                 if (disposed)
                 {
                     return;
                 }
+
                 disposed = true;
                 queue.Reinstate(operations);
                 operations.Clear();
@@ -202,13 +200,14 @@ namespace DiskQueue.Implementation
                 {
                     stream.Dispose();
                 }
+
                 currentStream.Dispose();
                 GC.SuppressFinalize(this);
             }
         }
 
         /// <summary>
-        /// Dispose queue on destructor. This is a safty-valve. You should ensure you
+        /// Dispose queue on destructor. This is a safety-valve. You should ensure you
         /// dispose of sessions normally.
         /// </summary>
         ~PersistentQueueSession()

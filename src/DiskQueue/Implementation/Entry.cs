@@ -26,7 +26,7 @@ namespace DiskQueue.Implementation
         }
 
         /// <summary>
-        /// The actual data for this entry. 
+        /// The actual data for this entry.
         /// This only has value coming _out_ of the queue.
         /// </summary>
         public byte[] Data { get; set; }
@@ -63,13 +63,7 @@ namespace DiskQueue.Implementation
         /// </summary>
         public override int GetHashCode()
         {
-            unchecked
-            {
-                int result = FileNumber;
-                result = (result * 397) ^ Start;
-                result = (result * 397) ^ Length;
-                return result;
-            }
+            return HashCode.Combine(FileNumber, Start, Length);
         }
 
         /// <summary>
