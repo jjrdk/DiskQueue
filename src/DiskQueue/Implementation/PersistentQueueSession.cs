@@ -14,7 +14,7 @@ namespace DiskQueue.Implementation
     /// </summary>
     internal sealed class PersistentQueueSession : IPersistentQueueSession
     {
-        private readonly SymmetricAlgorithm algo;
+        private readonly SymmetricAlgorithm symmetricAlgorithm;
         private readonly List<Operation> operations = new List<Operation>();
         private Stream currentStream;
         private readonly int writeBufferSize;
@@ -22,7 +22,7 @@ namespace DiskQueue.Implementation
         private readonly List<Stream> streamsToDisposeOnFlush = new List<Stream>();
         private static readonly object CtorLock = new object();
         private volatile bool disposed;
-        private readonly List<byte[]> buffer = new List<byte[]>();
+        private readonly List<ReadOnlyMemory<byte>> buffer = new List<ReadOnlyMemory<byte>>();
         private int bufferSize;
         private const int MinSizeThatMakeAsyncWritePractical = 64 * 1024;
 
@@ -35,9 +35,9 @@ namespace DiskQueue.Implementation
             IPersistentQueue queue,
             Stream currentStream,
             int writeBufferSize,
-            SymmetricAlgorithm algo)
+            SymmetricAlgorithm symmetricAlgorithm)
         {
-            this.algo = algo;
+            this.symmetricAlgorithm = symmetricAlgorithm;
             lock (CtorLock)
             {
                 this.queue = queue;
@@ -55,9 +55,9 @@ namespace DiskQueue.Implementation
         /// <summary>
         /// Queue data for a later decode. Data is written on `Flush()`
         /// </summary>
-        public async Task Enqueue(byte[] data, CancellationToken cancellationToken = default)
+        public async Task Enqueue(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
         {
-            if (algo != null)
+            if (symmetricAlgorithm != null)
             {
                 await EnqueueEncrypted(data, cancellationToken).ConfigureAwait(false);
             }
@@ -74,12 +74,12 @@ namespace DiskQueue.Implementation
             }
         }
 
-        private async Task EnqueueEncrypted(byte[] data, CancellationToken cancellationToken)
+        private async Task EnqueueEncrypted(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
         {
             await using var memoryStream = new MemoryStream();
-            await using (var cs = new CryptoStream(memoryStream, algo.CreateEncryptor(), CryptoStreamMode.Write, true))
+            await using (var cs = new CryptoStream(memoryStream, symmetricAlgorithm.CreateEncryptor(), CryptoStreamMode.Write, true))
             {
-                await cs.WriteAsync(data.AsMemory(0, data.Length), cancellationToken).ConfigureAwait(false);
+                await cs.WriteAsync(data, cancellationToken).ConfigureAwait(false);
                 await cs.FlushAsync(cancellationToken).ConfigureAwait(false);
                 await cs.FlushFinalBlockAsync(cancellationToken).ConfigureAwait(false);
                 cs.Close();
@@ -92,22 +92,22 @@ namespace DiskQueue.Implementation
 
         private async Task<long> AsyncWriteToStream(Stream stream, CancellationToken cancellationToken)
         {
-            var data = ConcatenateBufferAndAddIndividualOperations(stream);
+            var data = ConcatenateBufferAndAddIndividualOperations((int)stream.Position);
             var positionAfterWrite = stream.Position + data.Length;
             await stream.WriteAsync(data, cancellationToken).ConfigureAwait(false);
 
             return positionAfterWrite;
         }
 
-        private byte[] ConcatenateBufferAndAddIndividualOperations(Stream stream)
+        private byte[] ConcatenateBufferAndAddIndividualOperations(int start)
         {
             var data = new byte[bufferSize];
-            var start = (int)stream.Position;
             var index = 0;
             foreach (var bytes in buffer)
             {
                 operations.Add(new Operation(OperationType.Enqueue, queue.CurrentFileNumber, start, bytes.Length));
-                Buffer.BlockCopy(bytes, 0, data, index, bytes.Length);
+                Buffer.BlockCopy(bytes.ToArray(), 0, data, index, bytes.Length);
+                bytes.CopyTo(data.AsMemory(index, bytes.Length));
                 start += bytes.Length;
                 index += bytes.Length;
             }
@@ -136,13 +136,13 @@ namespace DiskQueue.Implementation
             }
 
             operations.Add(new Operation(OperationType.Dequeue, entry.FileNumber, entry.Start, entry.Length));
-            if (algo != null)
+            if (symmetricAlgorithm != null)
             {
                 await using var outputStream = new MemoryStream();
                 await using var dataStream = new MemoryStream(entry.Data);
                 await using var cryptoStream = new CryptoStream(
                     dataStream,
-                    algo.CreateDecryptor(),
+                    symmetricAlgorithm.CreateDecryptor(),
                     CryptoStreamMode.Read);
                 await cryptoStream.CopyToAsync(outputStream, cancellationToken).ConfigureAwait(false);
                 await cryptoStream.FlushAsync(cancellationToken).ConfigureAwait(false);
