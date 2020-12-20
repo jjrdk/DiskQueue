@@ -92,8 +92,8 @@ namespace DiskQueue.Implementation
 
         private async Task<long> AsyncWriteToStream(Stream stream, CancellationToken cancellationToken)
         {
-            byte[] data = ConcatenateBufferAndAddIndividualOperations(stream);
-            long positionAfterWrite = stream.Position + data.Length;
+            var data = ConcatenateBufferAndAddIndividualOperations(stream);
+            var positionAfterWrite = stream.Position + data.Length;
             await stream.WriteAsync(data, cancellationToken).ConfigureAwait(false);
 
             return positionAfterWrite;

@@ -365,7 +365,7 @@ namespace DiskQueue
                 return;
             }
 
-            byte[] transactionBuffer = await GenerateTransactionBuffer(operations, cancellationToken).ConfigureAwait(false);
+            var transactionBuffer = await GenerateTransactionBuffer(operations, cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -404,7 +404,7 @@ namespace DiskQueue
 
         FileStream WaitForTransactionLog(byte[] transactionBuffer)
         {
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 try
                 {
@@ -462,7 +462,7 @@ namespace DiskQueue
         {
             long currentBufferSize = 0;
             var firstEntry = entries.First.Value;
-            Entry lastEntry = firstEntry;
+            var lastEntry = firstEntry;
             foreach (var entry in entries)
             {
                 // we can't read ahead to another file or
@@ -488,7 +488,7 @@ namespace DiskQueue
                 currentBufferSize = lastEntry.Length;
             }
 
-            byte[] buffer = await ReadEntriesFromFile(firstEntry, currentBufferSize, cancellationToken).ConfigureAwait(false);
+            var buffer = await ReadEntriesFromFile(firstEntry, currentBufferSize, cancellationToken).ConfigureAwait(false);
 
             var index = 0;
             foreach (var entry in entries)
@@ -561,10 +561,10 @@ namespace DiskQueue
                     stream =>
                     {
                         using var binaryReader = new BinaryReader(stream);
-                        bool readingTransaction = false;
+                        var readingTransaction = false;
                         try
                         {
-                            int txCount = 0;
+                            var txCount = 0;
                             while (true)
                             {
                                 txCount += 1;

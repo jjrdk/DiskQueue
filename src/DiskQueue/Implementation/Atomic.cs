@@ -117,7 +117,7 @@ namespace DiskQueue.Implementation
 
 		static bool WaitDelete(string s)
 		{
-			for (int i = 0; i < 5; i++)
+			for (var i = 0; i < 5; i++)
 			{
 				try
 				{

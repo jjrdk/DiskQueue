@@ -19,12 +19,12 @@ namespace DiskQueue.Tests
         public void Can_access_from_multiple_queues_if_used_carefully()
         {
             var received = new List<byte[]>();
-            int numberOfItems = 10;
+            var numberOfItems = 10;
 
             var waitHandle = new ManualResetEvent(false);
             var t1 = Task.Run(async () =>
             {
-                for (int i = 0; i < numberOfItems; i++)
+                for (var i = 0; i < numberOfItems; i++)
                 {
                     await AddToQueue(new byte[] { 1, 2, 3 }).ConfigureAwait(false);
                 }

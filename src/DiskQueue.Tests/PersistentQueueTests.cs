@@ -303,7 +303,7 @@ namespace DiskQueue.Tests
                 await session.Flush().ConfigureAwait(false);
             }
 
-            for (int i = 0; i < 4; i++)
+            for (var i = 0; i < 4; i++)
             {
                 await using var queue = await PersistentQueue.Create(Path).ConfigureAwait(false);
                 using var session = queue.OpenSession();

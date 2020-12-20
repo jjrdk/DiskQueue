@@ -22,7 +22,7 @@ namespace DiskQueue.Tests
             {
                 using (var session = queue.OpenSession())
                 {
-                    for (int j = 0; j < 10; j++)
+                    for (var j = 0; j < 10; j++)
                     {
                         await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
                     }
@@ -32,7 +32,7 @@ namespace DiskQueue.Tests
 
                 using (var session = queue.OpenSession())
                 {
-                    for (int j = 0; j < 10; j++)
+                    for (var j = 0; j < 10; j++)
                     {
                         await session.Dequeue().ConfigureAwait(false);
                     }
@@ -54,7 +54,7 @@ namespace DiskQueue.Tests
             {
                 using (var session = queue.OpenSession())
                 {
-                    for (int j = 0; j < 10; j++)
+                    for (var j = 0; j < 10; j++)
                     {
                         await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
                     }
@@ -64,7 +64,7 @@ namespace DiskQueue.Tests
 
                 using (var session = queue.OpenSession())
                 {
-                    for (int j = 0; j < 10; j++)
+                    for (var j = 0; j < 10; j++)
                     {
                         await session.Dequeue().ConfigureAwait(false);
                     }
@@ -88,7 +88,7 @@ namespace DiskQueue.Tests
             {
                 using (var session = queue.OpenSession())
                 {
-                    for (int j = 0; j < 10; j++)
+                    for (var j = 0; j < 10; j++)
                     {
                         await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
                     }
@@ -98,7 +98,7 @@ namespace DiskQueue.Tests
 
                 using (var session = queue.OpenSession())
                 {
-                    for (int j = 0; j < 10; j++)
+                    for (var j = 0; j < 10; j++)
                     {
                         await session.Dequeue().ConfigureAwait(false);
                     }
@@ -112,7 +112,7 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 10; j++)
+                for (var j = 0; j < 10; j++)
                 {
                     await session.Dequeue().ConfigureAwait(false);
                 }
@@ -132,7 +132,7 @@ namespace DiskQueue.Tests
 
             using (var session = queue.OpenSession())
             {
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
                 }
@@ -143,11 +143,11 @@ namespace DiskQueue.Tests
             // there is no way optimize here, so we should get expected size, even though it is bigger than
             // what we suggested as the max
             txLogInfo.Refresh();
-            long txSizeWhenOpen = txLogInfo.Length;
+            var txSizeWhenOpen = txLogInfo.Length;
 
             using (var session = queue.OpenSession())
             {
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Dequeue().ConfigureAwait(false);
                 }
@@ -171,7 +171,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Enqueue(BitConverter.GetBytes(j)).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
@@ -187,7 +187,7 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 19; j++)
+                for (var j = 0; j < 19; j++)
                 {
                     Assert.AreEqual(j, BitConverter.ToInt32(await session.Dequeue().ConfigureAwait(false), 0));
                 }
@@ -206,7 +206,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Enqueue(BitConverter.GetBytes(j)).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
@@ -236,7 +236,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Enqueue(BitConverter.GetBytes(j)).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
@@ -266,7 +266,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Enqueue(BitConverter.GetBytes(j)).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
@@ -294,7 +294,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Enqueue(Array.Empty<byte>()).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
@@ -304,7 +304,7 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     Assert.IsEmpty(await session.Dequeue());
                 }
@@ -321,7 +321,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Enqueue(Constants.EndTransactionSeparator.ToArray()).ConfigureAwait(false); // ???
                     await session.Flush().ConfigureAwait(false);
@@ -345,7 +345,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Enqueue(Constants.StartTransactionSeparator.ToArray()).ConfigureAwait(false); // ???
                     await session.Flush().ConfigureAwait(false);
@@ -371,7 +371,7 @@ namespace DiskQueue.Tests
                 using var session = queue.OpenSession();
                 await session.Enqueue(Array.Empty<byte>()).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
-                for (int j = 0; j < 19; j++)
+                for (var j = 0; j < 19; j++)
                 {
                     await session.Enqueue(new byte[] { 1 }).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
@@ -381,7 +381,7 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     Assert.IsNotNull(await session.Dequeue());
                     await session.Flush().ConfigureAwait(false);
@@ -396,7 +396,7 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path, trimTransactionLogOnDispose: false).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 19; j++)
+                for (var j = 0; j < 19; j++)
                 {
                     await session.Enqueue(new byte[] { 1 }).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
@@ -409,7 +409,7 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     Assert.IsNotNull(await session.Dequeue());
                     await session.Flush().ConfigureAwait(false);
@@ -425,7 +425,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 5; j++)
+                for (var j = 0; j < 5; j++)
                 {
                     await session.Enqueue(Array.Empty<byte>()).ConfigureAwait(false);
                 }
@@ -445,7 +445,7 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 10; j++)
+                for (var j = 0; j < 10; j++)
                 {
                     Assert.IsEmpty(await session.Dequeue());
                 }
@@ -464,7 +464,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 5; j++)
+                for (var j = 0; j < 5; j++)
                 {
                     await session.Enqueue(Array.Empty<byte>()).ConfigureAwait(false);
                 }
@@ -485,7 +485,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 5; j++) // first 5 should be OK
+                for (var j = 0; j < 5; j++) // first 5 should be OK
                 {
                     Assert.IsNotNull(await session.Dequeue());
                 }
@@ -503,7 +503,7 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Enqueue(BitConverter.GetBytes(j)).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
@@ -533,7 +533,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 0; j < 20; j++)
+                for (var j = 0; j < 20; j++)
                 {
                     await session.Enqueue(BitConverter.GetBytes(j)).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
@@ -550,7 +550,7 @@ namespace DiskQueue.Tests
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                for (int j = 20; j < 40; j++)
+                for (var j = 20; j < 40; j++)
                 {
                     await session.Enqueue(BitConverter.GetBytes(j)).ConfigureAwait(false);
                 }
