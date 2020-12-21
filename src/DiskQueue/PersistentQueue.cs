@@ -34,6 +34,7 @@ namespace AsyncDiskQueue
     using System.Threading;
     using System.Threading.Tasks;
     using Implementation;
+    using Microsoft.Extensions.Logging;
 
     /// <summary>
     /// Implements the persistent queue.
@@ -53,6 +54,7 @@ namespace AsyncDiskQueue
         private volatile bool disposed;
         private FileStream fileLock;
         private readonly SymmetricAlgorithm symmetricAlgorithm;
+        private readonly ILogger<IPersistentQueue> logger;
         private readonly bool trimTransactionLogOnDispose;
         private readonly int suggestedReadBuffer;
         private readonly int suggestedWriteBuffer;
@@ -60,6 +62,7 @@ namespace AsyncDiskQueue
         private readonly int maxFileSize;
         private readonly bool paranoidFlushing;
         private int currentFileNumber;
+        private long currentFilePosition;
 
         private PersistentQueue(
             string path,
@@ -70,10 +73,17 @@ namespace AsyncDiskQueue
             bool paranoidFlushing,
             int suggestedReadBuffer,
             int suggestedWriteBuffer,
-            SymmetricAlgorithm symmetricAlgorithm)
+            SymmetricAlgorithm symmetricAlgorithm,
+            ILogger<IPersistentQueue> logger)
         {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+
             this.trimTransactionLogOnDispose = trimTransactionLogOnDispose;
             this.symmetricAlgorithm = symmetricAlgorithm;
+            this.logger = logger;
             lock (ConfigLock)
             {
                 disposed = true;
@@ -107,11 +117,12 @@ namespace AsyncDiskQueue
                 }
             }
         }
-        
+
         /// <summary>
         /// Creates a new instance of a persistent queue.
         /// </summary>
         /// <param name="path">The storage path for queue files.</param>
+        /// <param name="logger">The logger.</param>
         /// <param name="maxWait">The max wait time to create the queue.</param>
         /// <param name="maxFileSize">The max size for data files.</param>
         /// <param name="throwOnConflict">Throw on file conflicts.</param>
@@ -124,6 +135,7 @@ namespace AsyncDiskQueue
         /// <returns>An <see cref="IPersistentQueue"/> as an async operation.</returns>
         public static Task<IPersistentQueue> Create(
             string path,
+            ILogger<IPersistentQueue> logger,
             TimeSpan maxWait,
             int maxFileSize = Constants._32Megabytes,
             bool throwOnConflict = true,
@@ -137,21 +149,23 @@ namespace AsyncDiskQueue
             using var source = new CancellationTokenSource(maxWait);
             return Create(
                 path,
-                maxFileSize,
-                throwOnConflict,
-                suggestedMaxTransactionLogSize,
-                trimTransactionLogOnDispose,
-                paranoidFlushing,
-                suggestedReadBuffer,
-                suggestedWriteBuffer,
-                symmetricAlgorithm,
-                source.Token);
+                logger,
+                maxFileSize: maxFileSize,
+                throwOnConflict: throwOnConflict,
+                suggestedMaxTransactionLogSize: suggestedMaxTransactionLogSize,
+                trimTransactionLogOnDispose: trimTransactionLogOnDispose,
+                paranoidFlushing: paranoidFlushing,
+                suggestedReadBuffer: suggestedReadBuffer,
+                suggestedWriteBuffer: suggestedWriteBuffer,
+                symmetricAlgorithm: symmetricAlgorithm,
+                cancellationToken: source.Token);
         }
 
         /// <summary>
         /// Creates a new instance of a persistent queue.
         /// </summary>
         /// <param name="path">The storage path for queue files.</param>
+        /// <param name="logger">The logger.</param>
         /// <param name="maxFileSize">The max size for data files.</param>
         /// <param name="throwOnConflict">Throw on file conflicts.</param>
         /// <param name="suggestedMaxTransactionLogSize">The suggested transaction log size.</param>
@@ -164,6 +178,7 @@ namespace AsyncDiskQueue
         /// <returns>An <see cref="IPersistentQueue"/> as an async operation.</returns>
         public static async Task<IPersistentQueue> Create(
             string path,
+            ILogger<IPersistentQueue> logger,
             int maxFileSize = Constants._32Megabytes,
             bool throwOnConflict = true,
             int suggestedMaxTransactionLogSize = Constants._32Megabytes,
@@ -191,7 +206,8 @@ namespace AsyncDiskQueue
                             paranoidFlushing,
                             suggestedReadBuffer,
                             suggestedWriteBuffer,
-                            symmetricAlgorithm);
+                            symmetricAlgorithm,
+                            logger);
 
                         try
                         {
@@ -207,6 +223,7 @@ namespace AsyncDiskQueue
 
                         instance.disposed = false;
 
+                        logger.LogDebug("Queue instance created");
                         return instance;
                     }
                     catch (DirectoryNotFoundException)
@@ -215,8 +232,7 @@ namespace AsyncDiskQueue
                     }
                     catch (PlatformNotSupportedException ex)
                     {
-                        Console.WriteLine(
-                            "Blocked by " + ex.GetType().Name + "; " + ex.Message + "\r\n\r\n" + ex.StackTrace);
+                        logger.LogError(ex, "Blocked by " + ex.GetType().Name);
                         throw;
                     }
                     catch (UnableToSetupException)
@@ -229,6 +245,7 @@ namespace AsyncDiskQueue
                         {
                             throw;
                         }
+                        logger.LogDebug("Retrying setup.");
                         await Task.Delay(50, cancellationToken).ConfigureAwait(false);
                     }
                 }
@@ -241,7 +258,7 @@ namespace AsyncDiskQueue
 
         private void UnlockQueue()
         {
-            if (path == null) return;
+            logger.LogDebug("Unlock queue");
             var target = Path.Combine(path, "lock");
             if (fileLock != null)
             {
@@ -253,6 +270,7 @@ namespace AsyncDiskQueue
 
         private void LockQueue()
         {
+            logger.LogDebug("Lock queue");
             var target = Path.Combine(path, "lock");
             fileLock = new FileStream(
                 target,
@@ -303,17 +321,9 @@ namespace AsyncDiskQueue
             }
         }
 
-        private long CurrentFilePosition { get; set; }
+        private string TransactionLog => Path.Combine(path, "transaction.log");
 
-        private string TransactionLog
-        {
-            get { return Path.Combine(path, "transaction.log"); }
-        }
-
-        private string Meta
-        {
-            get { return Path.Combine(path, "meta.state"); }
-        }
+        private string Meta => Path.Combine(path, "meta.state");
 
         int IPersistentQueueStore.CurrentFileNumber => currentFileNumber;
 
@@ -330,6 +340,7 @@ namespace AsyncDiskQueue
 
                 try
                 {
+                    logger.LogDebug("Disposing queue");
                     disposed = true;
                     try
                     {
@@ -365,24 +376,25 @@ namespace AsyncDiskQueue
             try
             {
                 await writerSemaphore.WaitAsync().ConfigureAwait(false);
-
-                if (stream.Position != CurrentFilePosition)
+                logger.LogDebug("Writer acquired");
+                if (stream.Position != currentFilePosition)
                 {
-                    stream.Position = CurrentFilePosition;
+                    stream.Position = currentFilePosition;
                 }
 
-                CurrentFilePosition = await action(stream).ConfigureAwait(false);
-                if (CurrentFilePosition < maxFileSize) return;
+                currentFilePosition = await action(stream).ConfigureAwait(false);
+                if (currentFilePosition < maxFileSize) return;
 
                 Interlocked.Increment(ref currentFileNumber);
                 // If we get to int.MaxValue then start over.
                 Interlocked.CompareExchange(ref currentFileNumber, 0, int.MaxValue);
+                logger.LogDebug("Log file number: " + currentFileNumber);
                 var writer = CreateWriter();
                 // we assume same size messages, or near size messages
                 // that gives us a good heuristic for creating the size of
                 // the new file, so it wouldn't be fragmented
-                writer.SetLength(CurrentFilePosition);
-                CurrentFilePosition = 0;
+                writer.SetLength(currentFilePosition);
+                currentFilePosition = 0;
                 onReplaceStream(writer);
             }
             finally
@@ -398,6 +410,7 @@ namespace AsyncDiskQueue
                 return;
             }
 
+            logger.LogDebug("Committing transaction");
             var transactionBuffer = await GenerateTransactionBuffer(operations).ConfigureAwait(false);
 
             try
@@ -420,7 +433,7 @@ namespace AsyncDiskQueue
                     {
                         var bytes = BitConverter.GetBytes(currentFileNumber);
                         stream.Write(bytes, 0, bytes.Length);
-                        bytes = BitConverter.GetBytes(CurrentFilePosition);
+                        bytes = BitConverter.GetBytes(currentFilePosition);
                         stream.Write(bytes, 0, bytes.Length);
                     });
 
@@ -461,6 +474,7 @@ namespace AsyncDiskQueue
             try
             {
                 await entriesSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                logger.LogDebug("Dequeuing item");
                 var first = entries.First;
                 if (first == null)
                 {
@@ -854,7 +868,7 @@ namespace AsyncDiskQueue
                 try
                 {
                     currentFileNumber = binaryReader.ReadInt32();
-                    CurrentFilePosition = binaryReader.ReadInt64();
+                    currentFilePosition = binaryReader.ReadInt64();
                 }
                 catch (EndOfStreamException)
                 {

@@ -7,6 +7,8 @@ namespace DiskQueue.Tests
 {
     using System.Threading.Tasks;
     using AsyncDiskQueue;
+    using Microsoft.Extensions.Logging;
+    using NSubstitute;
 
     [TestFixture]
     public class ThreadSafeAccessTests
@@ -19,7 +21,7 @@ namespace DiskQueue.Tests
             const int target = 100;
             var rnd = new Random();
 
-            var _subject = await PersistentQueue.Create("queue_a").ConfigureAwait(false);
+            var _subject = await PersistentQueue.Create("queue_a", Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
             var t1 = Task.Run(
                 async () =>
                 {
@@ -27,7 +29,7 @@ namespace DiskQueue.Tests
                     {
                         using var session = _subject.OpenSession();
                         Console.Write("(");
-                        await session.Enqueue(new byte[] {1, 2, 3, 4}).ConfigureAwait(false);
+                        await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
                         Interlocked.Increment(ref t1s);
                         Thread.Sleep(rnd.Next(0, 100));
                         await session.Flush().ConfigureAwait(false);
@@ -70,11 +72,11 @@ namespace DiskQueue.Tests
                 {
                     for (var i = 0; i < target; i++)
                     {
-                        await using var subject = await PersistentQueue.Create("queue_b", TimeSpan.FromSeconds(10))
+                        await using var subject = await PersistentQueue.Create("queue_b", Substitute.For<ILogger<IPersistentQueue>>(), TimeSpan.FromSeconds(10))
                             .ConfigureAwait(false);
                         using var session = subject.OpenSession();
                         Console.Write("(");
-                        await session.Enqueue(new byte[] {1, 2, 3, 4}).ConfigureAwait(false);
+                        await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
                         Interlocked.Increment(ref t1s);
                         await session.Flush().ConfigureAwait(false);
                         Console.Write(")");
@@ -87,7 +89,7 @@ namespace DiskQueue.Tests
                     {
                         using var source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                         var subject = await PersistentQueue
-                            .Create("queue_b", cancellationToken: source.Token)
+                            .Create("queue_b", Substitute.For<ILogger<IPersistentQueue>>(), cancellationToken: source.Token)
                             .ConfigureAwait(false);
                         using var session = subject.OpenSession();
                         Console.Write("<");
