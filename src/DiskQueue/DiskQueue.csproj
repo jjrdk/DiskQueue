@@ -1,16 +1,34 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
-      <langVersion>latest</langVersion>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net5.0</TargetFramework>
+        <langVersion>latest</langVersion>
+        <DocumentationFile>bin\$(Configuration)\DiskQueue.xml</DocumentationFile>
+        <AssemblyName>asyncdiskqueue</AssemblyName>
+        <RootNamespace>AsyncDiskQueue</RootNamespace>
+        <Authors>Ayende Rahien, IainBallard, Jacob Reimers</Authors>
+        <Company>Reimers.dk</Company>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageProjectUrl>https://github.com/jjrdk/DiskQueue</PackageProjectUrl>
+        <PackageIcon>Logo-small.png</PackageIcon>
+        <RepositoryUrl>https://github.com/jjrdk/DiskQueue</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageTags>queue</PackageTags>
+    </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <DocumentationFile>bin\Debug\DiskQueue.xml</DocumentationFile>
-  </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.7.0" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.7.0" />
-  </ItemGroup>
+    <ItemGroup>
+      <None Include="..\..\LICENSE">
+        <Pack>True</Pack>
+        <PackagePath></PackagePath>
+      </None>
+      <None Include="..\..\Logo-small.png">
+        <Pack>True</Pack>
+        <PackagePath></PackagePath>
+      </None>
+    </ItemGroup>
 
 </Project>

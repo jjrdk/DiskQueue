@@ -2,11 +2,28 @@
 
     <PropertyGroup>
         <TargetFramework>net5.0</TargetFramework>
+        <AssemblyName>asyncdiskqueue.reactive</AssemblyName>
+        <RootNamespace>AsyncDiskQueue.Reactive</RootNamespace>
+        <Authors>Ayende Rahien, IainBallard, Jacob Reimers</Authors>
+        <Company>Reimers.dk</Company>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageProjectUrl>https://github.com/jjrdk/DiskQueue</PackageProjectUrl>
+        <PackageIcon>Logo-small.png</PackageIcon>
+        <RepositoryUrl>https://github.com/jjrdk/DiskQueue</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageTags>queue reactive</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="Polly" Version="7.2.1" />
         <ProjectReference Include="..\DiskQueue\DiskQueue.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="..\..\LICENSE">
+        <Pack>True</Pack>
+        <PackagePath></PackagePath>
+      </None>
     </ItemGroup>
 
 </Project>
