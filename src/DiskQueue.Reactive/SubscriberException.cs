@@ -1,4 +1,4 @@
-﻿namespace DiskQueue.Reactive
+﻿namespace AsyncDiskQueue.Reactive
 {
     using System;
 

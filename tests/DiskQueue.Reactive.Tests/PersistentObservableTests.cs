@@ -3,6 +3,8 @@ namespace DiskQueue.Reactive.Tests
     using System;
     using System.Threading;
     using System.Threading.Tasks;
+    using AsyncDiskQueue;
+    using AsyncDiskQueue.Reactive;
     using Xunit;
 
     public class PersistenEnumerableTests : QueueObservableTestBase
@@ -13,7 +15,7 @@ namespace DiskQueue.Reactive.Tests
             var rnd = new Random(DateTime.UtcNow.Millisecond);
             var content = new byte[5 * 1024 * 1024];
             rnd.NextBytes(content);
-            await using var queue = await PersistentQueue.Create(Path, maxFileSite: 2 * 1024 * 1024).ConfigureAwait(false);
+            await using var queue = await PersistentQueue.Create(Path, maxFileSize: 2 * 1024 * 1024).ConfigureAwait(false);
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(content).ConfigureAwait(false);
@@ -34,7 +36,7 @@ namespace DiskQueue.Reactive.Tests
                 }
             }
 
-            Assert.Equal(100, count);
+            Assert.Equal(10, count);
         }
     }
 

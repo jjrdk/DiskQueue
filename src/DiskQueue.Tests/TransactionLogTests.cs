@@ -2,13 +2,15 @@ using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using DiskQueue.Implementation;
+
 // ReSharper disable PossibleNullReferenceException
 // ReSharper disable AssignNullToNotNullAttribute
 
 namespace DiskQueue.Tests
 {
     using System.Threading.Tasks;
+    using AsyncDiskQueue;
+    using AsyncDiskQueue.Implementation;
 
     [TestFixture]
     public class TransactionLogTests : PersistentQueueTestsBase

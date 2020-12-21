@@ -8,7 +8,8 @@ namespace DiskQueue.Tests
 {
     using System.Threading;
     using System.Threading.Tasks;
-    using Implementation;
+    using AsyncDiskQueue;
+    using AsyncDiskQueue.Implementation;
 
     [TestFixture]
     public class AsyncEnumerableTests : PersistentQueueTestsBase

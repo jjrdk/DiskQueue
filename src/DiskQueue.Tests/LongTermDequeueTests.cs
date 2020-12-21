@@ -6,7 +6,7 @@ namespace DiskQueue.Tests
 {
     using System.Threading;
     using System.Threading.Tasks;
-    using Implementation;
+    using AsyncDiskQueue;
 
     [TestFixture]
     public class LongTermDequeueTests

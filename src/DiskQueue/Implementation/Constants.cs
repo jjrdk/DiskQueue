@@ -1,8 +1,8 @@
-using System;
-
-namespace DiskQueue.Implementation
+namespace AsyncDiskQueue.Implementation
 {
-	/// <summary>
+    using System;
+
+    /// <summary>
 	/// Magic constants used in the disk queue
 	/// </summary>
 	internal static class Constants

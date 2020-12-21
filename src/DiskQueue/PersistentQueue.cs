@@ -24,7 +24,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-namespace DiskQueue
+namespace AsyncDiskQueue
 {
     using System;
     using System.Collections.Generic;
@@ -107,11 +107,25 @@ namespace DiskQueue
                 }
             }
         }
-
+        
+        /// <summary>
+        /// Creates a new instance of a persistent queue.
+        /// </summary>
+        /// <param name="path">The storage path for queue files.</param>
+        /// <param name="maxWait">The max wait time to create the queue.</param>
+        /// <param name="maxFileSize">The max size for data files.</param>
+        /// <param name="throwOnConflict">Throw on file conflicts.</param>
+        /// <param name="suggestedMaxTransactionLogSize">The suggested transaction log size.</param>
+        /// <param name="trimTransactionLogOnDispose">Trim transaction log on dispose.</param>
+        /// <param name="paranoidFlushing">Flush buffers paranoid.</param>
+        /// <param name="suggestedReadBuffer">Suggested size of read buffer.</param>
+        /// <param name="suggestedWriteBuffer">Suggested size of write buffer.</param>
+        /// <param name="symmetricAlgorithm">The symmetric algorithm for queue content encryption.</param>
+        /// <returns>An <see cref="IPersistentQueue"/> as an async operation.</returns>
         public static Task<IPersistentQueue> Create(
             string path,
             TimeSpan maxWait,
-            int maxFileSite = Constants._32Megabytes,
+            int maxFileSize = Constants._32Megabytes,
             bool throwOnConflict = true,
             int suggestedMaxTransactionLogSize = Constants._32Megabytes,
             bool trimTransactionLogOnDispose = true,
@@ -123,7 +137,7 @@ namespace DiskQueue
             using var source = new CancellationTokenSource(maxWait);
             return Create(
                 path,
-                maxFileSite,
+                maxFileSize,
                 throwOnConflict,
                 suggestedMaxTransactionLogSize,
                 trimTransactionLogOnDispose,
@@ -134,9 +148,23 @@ namespace DiskQueue
                 source.Token);
         }
 
+        /// <summary>
+        /// Creates a new instance of a persistent queue.
+        /// </summary>
+        /// <param name="path">The storage path for queue files.</param>
+        /// <param name="maxFileSize">The max size for data files.</param>
+        /// <param name="throwOnConflict">Throw on file conflicts.</param>
+        /// <param name="suggestedMaxTransactionLogSize">The suggested transaction log size.</param>
+        /// <param name="trimTransactionLogOnDispose">Trim transaction log on dispose.</param>
+        /// <param name="paranoidFlushing">Flush buffers paranoid.</param>
+        /// <param name="suggestedReadBuffer">Suggested size of read buffer.</param>
+        /// <param name="suggestedWriteBuffer">Suggested size of write buffer.</param>
+        /// <param name="symmetricAlgorithm">The symmetric algorithm for queue content encryption.</param>
+        /// <param name="cancellationToken">The cancellation token for the async creation.</param>
+        /// <returns>An <see cref="IPersistentQueue"/> as an async operation.</returns>
         public static async Task<IPersistentQueue> Create(
             string path,
-            int maxFileSite = Constants._32Megabytes,
+            int maxFileSize = Constants._32Megabytes,
             bool throwOnConflict = true,
             int suggestedMaxTransactionLogSize = Constants._32Megabytes,
             bool trimTransactionLogOnDispose = true,
@@ -156,7 +184,7 @@ namespace DiskQueue
                     {
                         var instance = new PersistentQueue(
                             path,
-                            maxFileSite,
+                            maxFileSize,
                             throwOnConflict,
                             suggestedMaxTransactionLogSize,
                             trimTransactionLogOnDispose,

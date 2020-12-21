@@ -1,8 +1,8 @@
-﻿using System.Runtime.InteropServices;
-
-namespace DiskQueue.Implementation.CrossPlatform.Unix
+﻿namespace AsyncDiskQueue.Implementation.CrossPlatform.Unix
 {
-	/// <summary>
+    using System.Runtime.InteropServices;
+
+    /// <summary>
 	/// Unix calls
 	/// </summary>
 	public class UnsafeNativeMethods

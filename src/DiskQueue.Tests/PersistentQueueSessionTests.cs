@@ -1,4 +1,3 @@
-using DiskQueue.Implementation;
 using NSubstitute;
 using NSubstitute.Core;
 using NUnit.Framework;
@@ -10,6 +9,8 @@ namespace DiskQueue.Tests
 {
     using System.Threading;
     using System.Threading.Tasks;
+    using AsyncDiskQueue;
+    using AsyncDiskQueue.Implementation;
 
     [TestFixture]
     public class PersistentQueueSessionTests : PersistentQueueTestsBase

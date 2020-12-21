@@ -1,11 +1,11 @@
-﻿using System;
-using System.IO;
-using System.Security.AccessControl;
-using System.Security.Principal;
-using DiskQueue.Implementation.CrossPlatform.Unix;
-
-namespace DiskQueue
+﻿namespace AsyncDiskQueue
 {
+    using System;
+    using System.IO;
+    using System.Security.AccessControl;
+    using System.Security.Principal;
+    using Implementation.CrossPlatform.Unix;
+
     /// <summary>
     /// File permission tools for Windows and Linux
     /// </summary>

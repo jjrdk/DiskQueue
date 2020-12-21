@@ -1,4 +1,4 @@
-namespace DiskQueue.Implementation
+namespace AsyncDiskQueue.Implementation
 {
     /// <summary>
     /// List of marker constants

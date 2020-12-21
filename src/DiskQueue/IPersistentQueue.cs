@@ -1,7 +1,7 @@
-using System;
-
-namespace DiskQueue
+namespace AsyncDiskQueue
 {
+    using System;
+
     /// <summary>
     /// Wrapper for exposing some inner workings of the persistent queue.
     /// <para>You should be careful using any of these methods</para>

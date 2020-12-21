@@ -24,13 +24,13 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using System;
-using System.IO;
-using System.Threading;
-
-namespace DiskQueue.Implementation
+namespace AsyncDiskQueue.Implementation
 {
-	/// <summary>
+    using System;
+    using System.IO;
+    using System.Threading;
+
+    /// <summary>
 	/// Allow to overwrite a file in a transactional manner.
 	/// That is, either we completely succeed or completely fail in writing to the file.
 	/// Read will correct previous failed transaction if a previous write has failed.

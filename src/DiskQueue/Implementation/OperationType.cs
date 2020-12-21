@@ -1,4 +1,4 @@
-namespace DiskQueue.Implementation
+namespace AsyncDiskQueue.Implementation
 {
 	/// <summary>
 	/// Type of change applicable to a queue

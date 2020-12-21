@@ -1,4 +1,3 @@
-using DiskQueue.Implementation;
 using NUnit.Framework;
 using System;
 using System.Linq;
@@ -7,7 +6,9 @@ using System.Linq;
 
 namespace DiskQueue.Tests
 {
-	[TestFixture]
+    using AsyncDiskQueue.Implementation;
+
+    [TestFixture]
 	public class PendingWriteExceptionTests
 	{
 		[Test]

@@ -1,4 +1,4 @@
-namespace DiskQueue
+namespace AsyncDiskQueue
 {
     using System;
     using System.Threading;
@@ -31,6 +31,10 @@ namespace DiskQueue
         Task Flush(CancellationToken cancellationToken = default);
 	}
 
+    /// <summary>
+    /// Defines the typed persistent queue interface.
+    /// </summary>
+    /// <typeparam name="T">The <see cref="Type"/> of items stored in the queue.</typeparam>
     public interface IPersistentQueueSession<T> : IDisposable
     {
         /// <summary>

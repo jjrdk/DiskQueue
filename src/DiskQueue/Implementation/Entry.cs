@@ -1,7 +1,7 @@
-using System;
-
-namespace DiskQueue.Implementation
+namespace AsyncDiskQueue.Implementation
 {
+    using System;
+
     /// <summary>
     /// Internal storage file entry
     /// </summary>

@@ -1,4 +1,4 @@
-namespace DiskQueue.Implementation
+namespace AsyncDiskQueue.Implementation
 {
     /// <summary>
     /// Represents an operation on a specific file, with location and span.

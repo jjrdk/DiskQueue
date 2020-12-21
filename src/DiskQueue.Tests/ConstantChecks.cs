@@ -1,8 +1,9 @@
-using DiskQueue.Implementation;
 using NUnit.Framework;
 
 namespace DiskQueue.Tests
 {
+    using AsyncDiskQueue.Implementation;
+
     [TestFixture]
     public class ConstantChecks
     {

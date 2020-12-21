@@ -1,8 +1,8 @@
-using System;
-
-namespace DiskQueue.Implementation.CrossPlatform.Unix
+namespace AsyncDiskQueue.Implementation.CrossPlatform.Unix
 {
-	/// <summary>
+    using System;
+
+    /// <summary>
 	/// Unix file system permission flags
 	/// </summary>
 	[Flags]

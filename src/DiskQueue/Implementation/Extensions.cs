@@ -1,8 +1,8 @@
-using System.Collections.Generic;
-
-namespace DiskQueue.Implementation
+namespace AsyncDiskQueue.Implementation
 {
-	/// <summary>
+    using System.Collections.Generic;
+
+    /// <summary>
 	/// Internal extension methods
 	/// </summary>
 	internal static class Extensions

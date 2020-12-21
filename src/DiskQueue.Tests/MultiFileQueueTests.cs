@@ -4,7 +4,7 @@ using System.IO;
 namespace DiskQueue.Tests
 {
     using System.Threading.Tasks;
-    using Implementation;
+    using AsyncDiskQueue;
 
     [TestFixture]
     public class MultiFileQueueTests : PersistentQueueTestsBase

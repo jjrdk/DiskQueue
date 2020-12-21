@@ -1,4 +1,4 @@
-namespace DiskQueue
+namespace AsyncDiskQueue
 {
     using System;
     using System.Collections.Generic;

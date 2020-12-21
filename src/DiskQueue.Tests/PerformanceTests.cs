@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace DiskQueue.Tests
 {
     using System.Threading.Tasks;
-    using Implementation;
+    using AsyncDiskQueue;
 
     [TestFixture, Explicit]
     public class PerformanceTests : PersistentQueueTestsBase
