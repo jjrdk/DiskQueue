@@ -13,7 +13,7 @@ namespace DiskQueue.Tests
         public async Task Can_get_count_from_queue()
         {
             await using var queue = await PersistentQueue.Create(Path).ConfigureAwait(false);
-            Assert.AreEqual(0, queue.EstimatedCountOfItemsInQueue);
+            Assert.AreEqual(0, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
         }
 
         [Test]
@@ -27,7 +27,7 @@ namespace DiskQueue.Tests
                 await session.Flush().ConfigureAwait(false);
             }
 
-            Assert.AreEqual(5, queue.EstimatedCountOfItemsInQueue);
+            Assert.AreEqual(5, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
         }
 
 
@@ -46,7 +46,7 @@ namespace DiskQueue.Tests
 
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
-                Assert.AreEqual(5, queue.EstimatedCountOfItemsInQueue);
+                Assert.AreEqual(5, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
             }
         }
     }

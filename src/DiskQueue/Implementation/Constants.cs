@@ -32,13 +32,4 @@ namespace DiskQueue.Implementation
 
         public const int _1Megabyte = 1024 * 1024;
     }
-
-    /// <summary>
-    /// List of marker constants
-    /// </summary>
-    internal enum Marker
-    {
-        StartTransaction = 0,
-        EndTransaction = -1
-    }
 }

@@ -29,13 +29,6 @@ namespace DiskQueue.Implementation
     using System;
     using System.Text;
 
-    internal class UnableToSetupException : Exception
-    {
-        public UnableToSetupException(string message) : base(message)
-        {
-        }
-    }
-
     /// <summary>
     /// Exception thrown when data can't be persisted
     /// </summary>

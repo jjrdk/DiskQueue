@@ -18,7 +18,7 @@ namespace DiskQueue.Implementation
         private readonly List<Operation> operations = new List<Operation>();
         private Stream currentStream;
         private readonly int writeBufferSize;
-        private readonly IPersistentQueue queue;
+        private readonly IPersistentQueueStore queue;
         private readonly List<Stream> streamsToDisposeOnFlush = new List<Stream>();
         private static readonly object CtorLock = new object();
         private volatile bool disposed;
@@ -32,7 +32,7 @@ namespace DiskQueue.Implementation
         /// <example>using (var q = PersistentQueue.WaitFor("myQueue")) using (var session = q.OpenSession()) { ... }</example>
         /// </summary>
         public PersistentQueueSession(
-            IPersistentQueue queue,
+            IPersistentQueueStore queue,
             Stream currentStream,
             int writeBufferSize,
             SymmetricAlgorithm symmetricAlgorithm)
@@ -57,6 +57,7 @@ namespace DiskQueue.Implementation
         /// </summary>
         public async Task Enqueue(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (symmetricAlgorithm != null)
             {
                 await EnqueueEncrypted(data, cancellationToken).ConfigureAwait(false);
@@ -69,7 +70,7 @@ namespace DiskQueue.Implementation
 
             if (bufferSize > writeBufferSize)
             {
-                await queue.AcquireWriter(currentStream, AsyncWriteToStream, OnReplaceStream, cancellationToken)
+                await queue.AcquireWriter(currentStream, AsyncWriteToStream, OnReplaceStream)
                     .ConfigureAwait(false);
             }
         }
@@ -90,11 +91,11 @@ namespace DiskQueue.Implementation
             bufferSize += toAdd.Length;
         }
 
-        private async Task<long> AsyncWriteToStream(Stream stream, CancellationToken cancellationToken)
+        private async Task<long> AsyncWriteToStream(Stream stream)
         {
             var data = ConcatenateBufferAndAddIndividualOperations((int)stream.Position);
             var positionAfterWrite = stream.Position + data.Length;
-            await stream.WriteAsync(data, cancellationToken).ConfigureAwait(false);
+            await stream.WriteAsync(data).ConfigureAwait(false);
 
             return positionAfterWrite;
         }
@@ -160,16 +161,20 @@ namespace DiskQueue.Implementation
         /// <param name="cancellationToken"></param>
         public async Task Flush(CancellationToken cancellationToken = default)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
             try
             {
-                await queue.AcquireWriter(currentStream, AsyncWriteToStream, OnReplaceStream, cancellationToken)
+                await queue.AcquireWriter(currentStream, AsyncWriteToStream, OnReplaceStream)
                     .ConfigureAwait(false);
             }
             finally
             {
                 foreach (var stream in streamsToDisposeOnFlush)
                 {
-                    await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    await stream.FlushAsync(CancellationToken.None).ConfigureAwait(false);
                     await stream.DisposeAsync().ConfigureAwait(false);
                 }
 
@@ -177,7 +182,7 @@ namespace DiskQueue.Implementation
             }
 
             await currentStream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            await queue.CommitTransaction(operations, cancellationToken).ConfigureAwait(false);
+            await queue.CommitTransaction(operations).ConfigureAwait(false);
             operations.Clear();
         }
 

@@ -77,7 +77,7 @@ namespace DiskQueue.Tests
 
             await using (var queue = await PersistentQueue.Create(Path).ConfigureAwait(false))
             {
-                Assert.AreEqual(10, queue.EstimatedCountOfItemsInQueue);
+                Assert.AreEqual(10, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
             }
         }
 

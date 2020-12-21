@@ -6,8 +6,66 @@ using System.IO;
 
 namespace DiskQueue.Tests
 {
+    using System.Threading;
     using System.Threading.Tasks;
     using Implementation;
+
+    [TestFixture]
+    public class AsyncEnumerableTests : PersistentQueueTestsBase
+    {
+        [Test]
+        public async Task WhenEnumeratingOverQueueThenReturnsItems()
+        {
+            const int count = 5;
+            var items = new List<Guid>();
+            using var tokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+            await using (var queue = await PersistentQueue.Create(Path, cancellationToken: tokenSource.Token).ConfigureAwait(false))
+            {
+                using (var fillSession = queue.OpenSession(g => g.ToByteArray(), b => new Guid(b)))
+                {
+                    for (var i = 0; i < count; i++)
+                    {
+                        await fillSession.Enqueue(Guid.NewGuid(), tokenSource.Token).ConfigureAwait(false);
+                    }
+
+                    await fillSession.Flush(tokenSource.Token).ConfigureAwait(false);
+                }
+
+                using var session = queue.OpenSession(g => g.ToByteArray(), b => new Guid(b));
+                try
+                {
+                    await foreach (var g in session.ToAsyncEnumerable(tokenSource.Token))
+                    {
+                        items.Add(g);
+                    }
+                }
+                catch (TaskCanceledException) { }
+            }
+
+            Assert.AreEqual(count, items.Count);
+        }
+
+        [Test]
+        public async Task WhenEnumeratingOverEmptyQueueThenReturnsNoItems()
+        {
+            var items = new List<Guid>();
+            using var tokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+            await using (var queue = await PersistentQueue.Create(Path, cancellationToken: tokenSource.Token).ConfigureAwait(false))
+            {
+                using var session = queue.OpenSession(g => g.ToByteArray(), b => new Guid(b));
+                try
+                {
+                    await foreach (var g in session.ToAsyncEnumerable(tokenSource.Token))
+                    {
+                        items.Add(g);
+                    }
+                }
+                catch (TaskCanceledException) { }
+            }
+
+            CollectionAssert.IsEmpty(items);
+        }
+    }
 
     [TestFixture]
     public class PersistentQueueTests : PersistentQueueTestsBase

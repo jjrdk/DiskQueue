@@ -78,9 +78,9 @@ namespace DiskQueue.Tests
                 Is.EqualTo("End of file reached while trying to read queue item"));
         }
 
-        private static IPersistentQueue PersistentQueueWithMemoryStream(MemoryStream limitedSizeStream)
+        private static IPersistentQueueStore PersistentQueueWithMemoryStream(MemoryStream limitedSizeStream)
         {
-            var queueStub = Substitute.For<IPersistentQueue>();
+            var queueStub = Substitute.For<IPersistentQueueStore>();
 
             queueStub.WhenForAnyArgs(async x => await x.AcquireWriter(null, null, null).ConfigureAwait(false))
                 .Do(c => CallActionArgument(c, limitedSizeStream).Wait());
@@ -89,8 +89,8 @@ namespace DiskQueue.Tests
 
         private static Task<long> CallActionArgument(CallInfo c, MemoryStream ms)
         {
-            var func = (Func<Stream, CancellationToken, Task<long>>)c.Args()[1];
-            return func(ms, CancellationToken.None);
+            var func = (Func<Stream, Task<long>>)c.Args()[1];
+            return func(ms);
         }
     }
 }

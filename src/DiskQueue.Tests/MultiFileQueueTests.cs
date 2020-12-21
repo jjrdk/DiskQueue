@@ -20,7 +20,7 @@ namespace DiskQueue.Tests
                 await session.Flush().ConfigureAwait(false);
             }
 
-            Assert.AreEqual(11, queue.EstimatedCountOfItemsInQueue);
+            Assert.AreEqual(11, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
         }
 
         [Test]
@@ -34,7 +34,7 @@ namespace DiskQueue.Tests
                 await session.Flush().ConfigureAwait(false);
             }
 
-            Assert.AreEqual(1, queue.CurrentFileNumber);
+            Assert.AreEqual(1, ((IPersistentQueueStore)queue).CurrentFileNumber);
         }
 
         [Test]
@@ -49,7 +49,7 @@ namespace DiskQueue.Tests
                     await session.Flush().ConfigureAwait(false);
                 }
 
-                Assert.AreEqual(1, queue.CurrentFileNumber);
+                Assert.AreEqual(1, ((IPersistentQueueStore)queue).CurrentFileNumber);
             }
 
             await using (var queue = await PersistentQueue.Create(Path, 10).ConfigureAwait(false))
@@ -61,7 +61,7 @@ namespace DiskQueue.Tests
                     await session.Flush().ConfigureAwait(false);
                 }
 
-                Assert.AreEqual(1, queue.CurrentFileNumber);
+                Assert.AreEqual(1, ((IPersistentQueueStore)queue).CurrentFileNumber);
             }
         }
 
@@ -77,7 +77,7 @@ namespace DiskQueue.Tests
                     await session.Flush().ConfigureAwait(false);
                 }
 
-                Assert.AreEqual(1, queue.CurrentFileNumber);
+                Assert.AreEqual(1, ((IPersistentQueueStore)queue).CurrentFileNumber);
             }
 
             await using (var queue = await PersistentQueue.Create(Path, 10).ConfigureAwait(false))
@@ -103,7 +103,7 @@ namespace DiskQueue.Tests
                     await session.Flush().ConfigureAwait(false);
                 }
 
-                Assert.AreEqual(1, queue.CurrentFileNumber);
+                Assert.AreEqual(1, ((IPersistentQueueStore)queue).CurrentFileNumber);
             }
 
             await using (var queue = await PersistentQueue.Create(Path, 10).ConfigureAwait(false))
@@ -115,7 +115,7 @@ namespace DiskQueue.Tests
                     await session.Flush().ConfigureAwait(false);
                 }
 
-                Assert.AreEqual(1, queue.CurrentFileNumber);
+                Assert.AreEqual(1, ((IPersistentQueueStore)queue).CurrentFileNumber);
             }
 
 
@@ -148,7 +148,7 @@ namespace DiskQueue.Tests
                     await session.Flush().ConfigureAwait(false);
                 }
 
-                Assert.AreEqual(1, queue.CurrentFileNumber);
+                Assert.AreEqual(1, ((IPersistentQueueStore)queue).CurrentFileNumber);
             }
 
             await using (var queue = await PersistentQueue.Create(Path, 10).ConfigureAwait(false))

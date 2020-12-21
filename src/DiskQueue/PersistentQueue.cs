@@ -35,7 +35,10 @@ namespace DiskQueue
     using System.Threading.Tasks;
     using Implementation;
 
-    internal class PersistentQueue : IPersistentQueue
+    /// <summary>
+    /// Implements the persistent queue.
+    /// </summary>
+    public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
     {
         private readonly SemaphoreSlim entriesSemaphore = new SemaphoreSlim(1);
         private readonly SemaphoreSlim writerSemaphore = new SemaphoreSlim(1);
@@ -49,13 +52,14 @@ namespace DiskQueue
         private static readonly object ConfigLock = new object();
         private volatile bool disposed;
         private FileStream fileLock;
-        private readonly SymmetricAlgorithm algo;
+        private readonly SymmetricAlgorithm symmetricAlgorithm;
         private readonly bool trimTransactionLogOnDispose;
         private readonly int suggestedReadBuffer;
         private readonly int suggestedWriteBuffer;
         private readonly long suggestedMaxTransactionLogSize;
         private readonly int maxFileSize;
         private readonly bool paranoidFlushing;
+        private int currentFileNumber;
 
         private PersistentQueue(
             string path,
@@ -66,10 +70,10 @@ namespace DiskQueue
             bool paranoidFlushing,
             int suggestedReadBuffer,
             int suggestedWriteBuffer,
-            SymmetricAlgorithm algo)
+            SymmetricAlgorithm symmetricAlgorithm)
         {
             this.trimTransactionLogOnDispose = trimTransactionLogOnDispose;
-            this.algo = algo;
+            this.symmetricAlgorithm = symmetricAlgorithm;
             lock (ConfigLock)
             {
                 disposed = true;
@@ -114,7 +118,7 @@ namespace DiskQueue
             bool paranoidFlushing = true,
             int suggestedReadBuffer = Constants._1Megabyte,
             int suggestedWriteBuffer = Constants._1Megabyte,
-            SymmetricAlgorithm algo = null)
+            SymmetricAlgorithm symmetricAlgorithm = null)
         {
             using var source = new CancellationTokenSource(maxWait);
             return Create(
@@ -126,7 +130,7 @@ namespace DiskQueue
                 paranoidFlushing,
                 suggestedReadBuffer,
                 suggestedWriteBuffer,
-                algo,
+                symmetricAlgorithm,
                 source.Token);
         }
 
@@ -139,7 +143,7 @@ namespace DiskQueue
             bool paranoidFlushing = true,
             int suggestedReadBuffer = Constants._1Megabyte,
             int suggestedWriteBuffer = Constants._1Megabyte,
-            SymmetricAlgorithm algo = null,
+            SymmetricAlgorithm symmetricAlgorithm = null,
             CancellationToken cancellationToken = default)
         {
             while (true)
@@ -159,12 +163,12 @@ namespace DiskQueue
                             paranoidFlushing,
                             suggestedReadBuffer,
                             suggestedWriteBuffer,
-                            algo);
+                            symmetricAlgorithm);
 
                         try
                         {
                             instance.ReadMetaState();
-                            await instance.ReadTransactionLog(cancellationToken).ConfigureAwait(false);
+                            await instance.ReadTransactionLog().ConfigureAwait(false);
                         }
                         catch (Exception)
                         {
@@ -207,7 +211,7 @@ namespace DiskQueue
             }
         }
 
-        void UnlockQueue()
+        private void UnlockQueue()
         {
             if (path == null) return;
             var target = Path.Combine(path, "lock");
@@ -219,7 +223,7 @@ namespace DiskQueue
             fileLock = null;
         }
 
-        void LockQueue()
+        private void LockQueue()
         {
             var target = Path.Combine(path, "lock");
             fileLock = new FileStream(
@@ -235,7 +239,7 @@ namespace DiskQueue
             SetPermissions.TryAllowReadWriteForAll(s);
         }
 
-        public int EstimatedCountOfItemsInQueue
+        int IPersistentQueueStore.EstimatedCountOfItemsInQueue
         {
             get
             {
@@ -271,7 +275,7 @@ namespace DiskQueue
             }
         }
 
-        public long CurrentFilePosition { get; private set; }
+        private long CurrentFilePosition { get; set; }
 
         private string TransactionLog
         {
@@ -283,8 +287,9 @@ namespace DiskQueue
             get { return Path.Combine(path, "meta.state"); }
         }
 
-        public int CurrentFileNumber { get; private set; }
+        int IPersistentQueueStore.CurrentFileNumber => currentFileNumber;
 
+        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             try
@@ -303,7 +308,7 @@ namespace DiskQueue
                         await transactionLogSemaphore.WaitAsync().ConfigureAwait(false);
                         if (trimTransactionLogOnDispose)
                         {
-                            await FlushTrimmedTransactionLog(CancellationToken.None).ConfigureAwait(false);
+                            await FlushTrimmedTransactionLog().ConfigureAwait(false);
                         }
                     }
                     finally
@@ -324,26 +329,26 @@ namespace DiskQueue
             }
         }
 
-        public async Task AcquireWriter(
+        async Task IPersistentQueueStore.AcquireWriter(
             Stream stream,
-            Func<Stream, CancellationToken, Task<long>> action,
-            Action<Stream> onReplaceStream,
-            CancellationToken cancellationToken = default)
+            Func<Stream, Task<long>> action,
+            Action<Stream> onReplaceStream)
         {
             try
             {
-                await writerSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                //lock (writerLock)
-                //{
+                await writerSemaphore.WaitAsync().ConfigureAwait(false);
+
                 if (stream.Position != CurrentFilePosition)
                 {
                     stream.Position = CurrentFilePosition;
                 }
 
-                CurrentFilePosition = await action(stream, cancellationToken).ConfigureAwait(false);
+                CurrentFilePosition = await action(stream).ConfigureAwait(false);
                 if (CurrentFilePosition < maxFileSize) return;
 
-                CurrentFileNumber += 1;
+                Interlocked.Increment(ref currentFileNumber);
+                // If we get to int.MaxValue then start over.
+                Interlocked.CompareExchange(ref currentFileNumber, 0, int.MaxValue);
                 var writer = CreateWriter();
                 // we assume same size messages, or near size messages
                 // that gives us a good heuristic for creating the size of
@@ -358,34 +363,34 @@ namespace DiskQueue
             }
         }
 
-        public async Task CommitTransaction(ICollection<Operation> operations, CancellationToken cancellationToken = default)
+        async Task IPersistentQueueStore.CommitTransaction(ICollection<Operation> operations)
         {
             if (operations.Count == 0)
             {
                 return;
             }
 
-            var transactionBuffer = await GenerateTransactionBuffer(operations, cancellationToken).ConfigureAwait(false);
+            var transactionBuffer = await GenerateTransactionBuffer(operations).ConfigureAwait(false);
 
             try
             {
-                await transactionLogSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await transactionLogSemaphore.WaitAsync().ConfigureAwait(false);
                 long txLogSize;
-                await using (var stream = WaitForTransactionLog(transactionBuffer))
+                await using (var stream = await WaitForTransactionLog(transactionBuffer).ConfigureAwait(false))
                 {
-                    await stream.WriteAsync(transactionBuffer, cancellationToken).ConfigureAwait(false);
+                    await stream.WriteAsync(transactionBuffer).ConfigureAwait(false);
                     txLogSize = stream.Position;
-                    await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    await stream.FlushAsync().ConfigureAwait(false);
                 }
 
                 ApplyTransactionOperations(operations);
-                await TrimTransactionLogIfNeeded(txLogSize, cancellationToken).ConfigureAwait(false);
+                await TrimTransactionLogIfNeeded(txLogSize).ConfigureAwait(false);
 
                 Atomic.Write(
                     Meta,
                     stream =>
                     {
-                        var bytes = BitConverter.GetBytes(CurrentFileNumber);
+                        var bytes = BitConverter.GetBytes(currentFileNumber);
                         stream.Write(bytes, 0, bytes.Length);
                         bytes = BitConverter.GetBytes(CurrentFilePosition);
                         stream.Write(bytes, 0, bytes.Length);
@@ -393,7 +398,7 @@ namespace DiskQueue
 
                 if (paranoidFlushing)
                 {
-                    await FlushTrimmedTransactionLog(cancellationToken).ConfigureAwait(false);
+                    await FlushTrimmedTransactionLog().ConfigureAwait(false);
                 }
             }
             finally
@@ -402,7 +407,7 @@ namespace DiskQueue
             }
         }
 
-        FileStream WaitForTransactionLog(byte[] transactionBuffer)
+        private async Task<FileStream> WaitForTransactionLog(byte[] transactionBuffer)
         {
             for (var i = 0; i < 10; i++)
             {
@@ -417,13 +422,13 @@ namespace DiskQueue
                 }
                 catch (Exception)
                 {
-                    Thread.Sleep(250);
+                    await Task.Delay(250).ConfigureAwait(false);
                 }
             }
-            throw new TimeoutException("Could not aquire transaction log lock");
+            throw new TimeoutException("Could not acquire transaction log lock");
         }
 
-        public async Task<Entry> Dequeue(CancellationToken cancellationToken = default)
+        async Task<Entry> IPersistentQueueStore.Dequeue(CancellationToken cancellationToken)
         {
             try
             {
@@ -438,7 +443,7 @@ namespace DiskQueue
 
                 if (entry.Data == null)
                 {
-                    await ReadAhead(cancellationToken).ConfigureAwait(false);
+                    await ReadAhead().ConfigureAwait(false);
                 }
                 entries.RemoveFirst();
                 // we need to create a copy so we will not hold the data
@@ -458,7 +463,7 @@ namespace DiskQueue
         /// <summary>
         /// Assumes that entries has at least one entry. Should be called inside a lock.
         /// </summary>
-        private async Task ReadAhead(CancellationToken cancellationToken)
+        private async Task ReadAhead()
         {
             long currentBufferSize = 0;
             var firstEntry = entries.First.Value;
@@ -488,7 +493,7 @@ namespace DiskQueue
                 currentBufferSize = lastEntry.Length;
             }
 
-            var buffer = await ReadEntriesFromFile(firstEntry, currentBufferSize, cancellationToken).ConfigureAwait(false);
+            var buffer = await ReadEntriesFromFile(firstEntry, currentBufferSize).ConfigureAwait(false);
 
             var index = 0;
             foreach (var entry in entries)
@@ -503,7 +508,7 @@ namespace DiskQueue
             }
         }
 
-        private async Task<byte[]> ReadEntriesFromFile(Entry firstEntry, long currentBufferSize, CancellationToken cancellationToken)
+        private async Task<byte[]> ReadEntriesFromFile(Entry firstEntry, long currentBufferSize)
         {
             var buffer = new byte[currentBufferSize];
             if (firstEntry.Length < 1)
@@ -522,7 +527,7 @@ namespace DiskQueue
             var totalRead = 0;
             do
             {
-                var bytesRead = await reader.ReadAsync(buffer.AsMemory(totalRead, buffer.Length - totalRead), cancellationToken)
+                var bytesRead = await reader.ReadAsync(buffer.AsMemory(totalRead, buffer.Length - totalRead))
                     .ConfigureAwait(false);
                 if (bytesRead == 0)
                 {
@@ -536,12 +541,12 @@ namespace DiskQueue
             return buffer;
         }
 
-        public IPersistentQueueSession OpenSession()
+        IPersistentQueueSession IPersistentQueue.OpenSession()
         {
-            return new PersistentQueueSession(this, CreateWriter(), suggestedWriteBuffer, algo);
+            return new PersistentQueueSession(this, CreateWriter(), suggestedWriteBuffer, symmetricAlgorithm);
         }
 
-        public void Reinstate(IEnumerable<Operation> reinstatedOperations)
+        void IPersistentQueueStore.Reinstate(IEnumerable<Operation> reinstatedOperations)
         {
             var operations = from entry in reinstatedOperations.Reverse()
                              where entry.Type == OperationType.Dequeue
@@ -553,7 +558,7 @@ namespace DiskQueue
             ApplyTransactionOperations(operations);
         }
 
-        private async Task ReadTransactionLog(CancellationToken cancellationToken)
+        private async Task ReadTransactionLog()
         {
             var requireTxLogTrimming = false;
             Atomic.Read(
@@ -571,7 +576,7 @@ namespace DiskQueue
                                 // this code ensures that we read the full transaction
                                 // before we start to apply it. The last truncated transaction will be
                                 // ignored automatically.
-                                AssertTransactionSeperator(
+                                AssertTransactionSeparator(
                                     binaryReader,
                                     txCount,
                                     Marker.StartTransaction,
@@ -598,7 +603,7 @@ namespace DiskQueue
                                 }
 
                                 // check that the end marker is in place
-                                AssertTransactionSeperator(binaryReader, txCount, Marker.EndTransaction, () => { });
+                                AssertTransactionSeparator(binaryReader, txCount, Marker.EndTransaction, () => { });
                                 readingTransaction = false;
                                 ApplyTransactionOperations(txOps);
                             }
@@ -614,17 +619,17 @@ namespace DiskQueue
                     });
             if (requireTxLogTrimming)
             {
-                await FlushTrimmedTransactionLog(cancellationToken).ConfigureAwait(false);
+                await FlushTrimmedTransactionLog().ConfigureAwait(false);
             }
         }
 
-        private async Task FlushTrimmedTransactionLog(CancellationToken cancellationToken)
+        private async Task FlushTrimmedTransactionLog()
         {
             await using var ms = new MemoryStream();
-            await ms.WriteAsync(Constants.StartTransactionSeparator, cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(Constants.StartTransactionSeparator).ConfigureAwait(false);
 
-            var count = BitConverter.GetBytes(EstimatedCountOfItemsInQueue);
-            await ms.WriteAsync(count, cancellationToken).ConfigureAwait(false);
+            var count = BitConverter.GetBytes(((IPersistentQueueStore)this).EstimatedCountOfItemsInQueue);
+            await ms.WriteAsync(count).ConfigureAwait(false);
 
             Entry[] checkedOut;
             lock (checkedOutEntries)
@@ -633,13 +638,13 @@ namespace DiskQueue
             }
             foreach (var entry in checkedOut)
             {
-                await WriteEntryToTransactionLog(ms, entry, OperationType.Enqueue, cancellationToken).ConfigureAwait(false);
+                await WriteEntryToTransactionLog(ms, entry, OperationType.Enqueue).ConfigureAwait(false);
             }
 
             Entry[] listedEntries;
             try
             {
-                await entriesSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await entriesSemaphore.WaitAsync().ConfigureAwait(false);
                 listedEntries = ToArray(entries);
             }
             finally
@@ -649,10 +654,10 @@ namespace DiskQueue
 
             foreach (var entry in listedEntries)
             {
-                await WriteEntryToTransactionLog(ms, entry, OperationType.Enqueue, cancellationToken).ConfigureAwait(false);
+                await WriteEntryToTransactionLog(ms, entry, OperationType.Enqueue).ConfigureAwait(false);
             }
-            await ms.WriteAsync(Constants.EndTransactionSeparator, cancellationToken).ConfigureAwait(false);
-            await ms.FlushAsync(cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(Constants.EndTransactionSeparator).ConfigureAwait(false);
+            await ms.FlushAsync().ConfigureAwait(false);
             var transactionBuffer = ms.ToArray();
             Atomic.Write(TransactionLog, stream =>
             {
@@ -680,21 +685,21 @@ namespace DiskQueue
             return output.ToArray();
         }
 
-        private static async Task WriteEntryToTransactionLog(Stream ms, Entry entry, OperationType operationType, CancellationToken cancellationToken)
+        private static async Task WriteEntryToTransactionLog(Stream ms, Entry entry, OperationType operationType)
         {
-            await ms.WriteAsync(Constants.OperationSeparatorBytes, cancellationToken)
+            await ms.WriteAsync(Constants.OperationSeparatorBytes)
                 .ConfigureAwait(false);
 
             ms.WriteByte((byte)operationType);
 
             var fileNumber = BitConverter.GetBytes(entry.FileNumber);
-            await ms.WriteAsync(fileNumber, cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(fileNumber).ConfigureAwait(false);
 
             var start = BitConverter.GetBytes(entry.Start);
-            await ms.WriteAsync(start, cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(start).ConfigureAwait(false);
 
             var length = BitConverter.GetBytes(entry.Length);
-            await ms.WriteAsync(length, cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(length).ConfigureAwait(false);
         }
 
         private void AssertOperationSeparator(BinaryReader reader)
@@ -769,7 +774,7 @@ namespace DiskQueue
             throw new EndOfStreamException();   // silently truncate transactions
         }
 
-        private void AssertTransactionSeperator(BinaryReader binaryReader, int txCount, Marker whichSeparator, Action hasData)
+        private void AssertTransactionSeparator(BinaryReader binaryReader, int txCount, Marker whichSeparator, Action hasData)
         {
             var bytes = binaryReader.ReadBytes(16);
             if (bytes.Length == 0) throw new EndOfStreamException();
@@ -820,7 +825,7 @@ namespace DiskQueue
                 using var binaryReader = new BinaryReader(stream);
                 try
                 {
-                    CurrentFileNumber = binaryReader.ReadInt32();
+                    currentFileNumber = binaryReader.ReadInt32();
                     CurrentFilePosition = binaryReader.ReadInt64();
                 }
                 catch (EndOfStreamException)
@@ -829,7 +834,7 @@ namespace DiskQueue
             });
         }
 
-        private async Task TrimTransactionLogIfNeeded(long txLogSize, CancellationToken cancellationToken)
+        private async Task TrimTransactionLogIfNeeded(long txLogSize)
         {
             if (txLogSize < suggestedMaxTransactionLogSize)
             {
@@ -839,7 +844,7 @@ namespace DiskQueue
             var optimalSize = GetOptimalTransactionLogSize();
             if (txLogSize < (optimalSize * 2)) return;  // not enough disparity to bother trimming
 
-            await FlushTrimmedTransactionLog(cancellationToken).ConfigureAwait(false);
+            await FlushTrimmedTransactionLog().ConfigureAwait(false);
         }
 
         private void ApplyTransactionOperations(IEnumerable<Operation> operations)
@@ -856,7 +861,7 @@ namespace DiskQueue
             }
             foreach (var fileNumber in filesToRemove)
             {
-                if (CurrentFileNumber == fileNumber)
+                if (currentFileNumber == fileNumber)
                 {
                     continue;
                 }
@@ -865,28 +870,28 @@ namespace DiskQueue
             }
         }
 
-        private static async Task<byte[]> GenerateTransactionBuffer(ICollection<Operation> operations, CancellationToken cancellationToken)
+        private static async Task<byte[]> GenerateTransactionBuffer(ICollection<Operation> operations)
         {
             await using var ms = new MemoryStream();
-            await ms.WriteAsync(Constants.StartTransactionSeparator, cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(Constants.StartTransactionSeparator).ConfigureAwait(false);
 
             var count = BitConverter.GetBytes(operations.Count);
-            await ms.WriteAsync(count, cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(count).ConfigureAwait(false);
 
             foreach (var operation in operations)
             {
-                await WriteEntryToTransactionLog(ms, new Entry(operation), operation.Type, cancellationToken).ConfigureAwait(false);
+                await WriteEntryToTransactionLog(ms, new Entry(operation), operation.Type).ConfigureAwait(false);
             }
-            await ms.WriteAsync(Constants.EndTransactionSeparator, cancellationToken).ConfigureAwait(false);
+            await ms.WriteAsync(Constants.EndTransactionSeparator).ConfigureAwait(false);
 
-            await ms.FlushAsync(cancellationToken).ConfigureAwait(false);
+            await ms.FlushAsync().ConfigureAwait(false);
             var transactionBuffer = ms.ToArray();
             return transactionBuffer;
         }
 
         private FileStream CreateWriter()
         {
-            var dataFilePath = GetDataPath(CurrentFileNumber);
+            var dataFilePath = GetDataPath(currentFileNumber);
             var stream = new FileStream(
                 dataFilePath,
                 FileMode.OpenOrCreate,
