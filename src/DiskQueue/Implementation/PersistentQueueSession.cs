@@ -6,6 +6,7 @@ namespace AsyncDiskQueue.Implementation
     using System.Security.Cryptography;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
 
     /// <summary>
     /// Default persistent queue session.
@@ -15,6 +16,7 @@ namespace AsyncDiskQueue.Implementation
     internal sealed class PersistentQueueSession : IPersistentQueueSession
     {
         private readonly SymmetricAlgorithm symmetricAlgorithm;
+        private readonly ILogger<IPersistentQueueSession> logger;
         private readonly List<Operation> operations = new List<Operation>();
         private Stream currentStream;
         private readonly int writeBufferSize;
@@ -35,9 +37,11 @@ namespace AsyncDiskQueue.Implementation
             IPersistentQueueStore queue,
             Stream currentStream,
             int writeBufferSize,
-            SymmetricAlgorithm symmetricAlgorithm)
+            SymmetricAlgorithm symmetricAlgorithm,
+            ILogger<IPersistentQueueSession> logger)
         {
             this.symmetricAlgorithm = symmetricAlgorithm;
+            this.logger = logger;
             lock (CtorLock)
             {
                 this.queue = queue;
@@ -58,6 +62,7 @@ namespace AsyncDiskQueue.Implementation
         public async Task Enqueue(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            logger.LogDebug("Enqueue item");
             if (symmetricAlgorithm != null)
             {
                 await EnqueueEncrypted(data, cancellationToken).ConfigureAwait(false);
@@ -77,6 +82,7 @@ namespace AsyncDiskQueue.Implementation
 
         private async Task EnqueueEncrypted(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
         {
+            logger.LogDebug("Encrypting content");
             await using var memoryStream = new MemoryStream();
             await using (var cs = new CryptoStream(memoryStream, symmetricAlgorithm.CreateEncryptor(), CryptoStreamMode.Write, true))
             {
@@ -130,6 +136,7 @@ namespace AsyncDiskQueue.Implementation
         /// <param name="cancellationToken"></param>
         public async Task<byte[]> Dequeue(CancellationToken cancellationToken = default)
         {
+            logger.LogDebug("Dequeue item");
             var entry = await queue.Dequeue(cancellationToken).ConfigureAwait(false);
             if (entry == null)
             {

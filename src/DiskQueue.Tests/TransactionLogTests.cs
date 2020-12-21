@@ -22,7 +22,7 @@ namespace DiskQueue.Tests
         {
             long txSizeWhenOpen;
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), paranoidFlushing: false).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), paranoidFlushing: false).ConfigureAwait(false))
             {
                 using (var session = queue.OpenSession())
                 {
@@ -54,7 +54,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Count_of_items_will_remain_fixed_after_dequeueing_without_flushing()
         {
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), paranoidFlushing: false).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), paranoidFlushing: false).ConfigureAwait(false))
             {
                 using (var session = queue.OpenSession())
                 {
@@ -79,7 +79,7 @@ namespace DiskQueue.Tests
                 }
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 Assert.AreEqual(10, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
             }
@@ -88,7 +88,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Dequeue_items_that_were_not_flushed_will_appear_after_queue_restart()
         {
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using (var session = queue.OpenSession())
                 {
@@ -113,7 +113,7 @@ namespace DiskQueue.Tests
                 }
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 10; j++)
@@ -131,7 +131,7 @@ namespace DiskQueue.Tests
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
 
-            await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), suggestedMaxTransactionLogSize: 32, paranoidFlushing: false)
+            await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), suggestedMaxTransactionLogSize: 32, paranoidFlushing: false)
                 .ConfigureAwait(false);
 
             using (var session = queue.OpenSession())
@@ -171,7 +171,7 @@ namespace DiskQueue.Tests
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
 
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false, paranoidFlushing: false)
+                .Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false, paranoidFlushing: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -188,7 +188,7 @@ namespace DiskQueue.Tests
                 txLog.Flush();
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 19; j++)
@@ -206,7 +206,7 @@ namespace DiskQueue.Tests
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -223,7 +223,7 @@ namespace DiskQueue.Tests
                 txLog.Flush();
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 Assert.IsNull(await session.Dequeue()); // the last transaction was corrupted
@@ -236,7 +236,7 @@ namespace DiskQueue.Tests
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -253,7 +253,7 @@ namespace DiskQueue.Tests
                 txLog.Flush();
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 Assert.IsNull(await session.Dequeue()); // the last transaction was corrupted
@@ -266,7 +266,7 @@ namespace DiskQueue.Tests
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -283,7 +283,7 @@ namespace DiskQueue.Tests
                 txLog.Flush();
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 Assert.IsNull(await session.Dequeue()); // the last transaction was corrupted
@@ -294,7 +294,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Can_handle_transaction_with_only_zero_length_entries()
         {
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -305,7 +305,7 @@ namespace DiskQueue.Tests
                 }
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 20; j++)
@@ -321,7 +321,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Can_handle_end_separator_used_as_data()
         {
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -334,7 +334,7 @@ namespace DiskQueue.Tests
                 await session.Flush().ConfigureAwait(false);
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 Assert.AreEqual(Constants.EndTransactionSeparator.ToArray(), await session.Dequeue());
@@ -345,7 +345,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Can_handle_start_separator_used_as_data()
         {
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -358,7 +358,7 @@ namespace DiskQueue.Tests
                 await session.Flush().ConfigureAwait(false);
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 Assert.AreEqual(Constants.StartTransactionSeparator.ToArray(), await session.Dequeue());
@@ -369,7 +369,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Can_handle_zero_length_entries_at_start()
         {
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -382,7 +382,7 @@ namespace DiskQueue.Tests
                 }
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 20; j++)
@@ -397,7 +397,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Can_handle_zero_length_entries_at_end()
         {
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 19; j++)
@@ -410,7 +410,7 @@ namespace DiskQueue.Tests
                 await session.Flush().ConfigureAwait(false);
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 20; j++)
@@ -425,7 +425,7 @@ namespace DiskQueue.Tests
         public async Task Can_restore_data_when_a_transaction_set_is_partially_truncated()
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -446,7 +446,7 @@ namespace DiskQueue.Tests
                 txLog.Flush();
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 10; j++)
@@ -464,7 +464,7 @@ namespace DiskQueue.Tests
             Can_restore_data_when_a_transaction_set_is_partially_overwritten_when_throwOnConflict_is_false()
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -485,7 +485,7 @@ namespace DiskQueue.Tests
                 txLog.Flush();
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: Constants._32Megabytes, throwOnConflict: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: Constants._32Megabytes, throwOnConflict: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -504,7 +504,7 @@ namespace DiskQueue.Tests
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 20; j++)
@@ -520,7 +520,7 @@ namespace DiskQueue.Tests
                 txLog.Flush();
             }
 
-            var q = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+            var q = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
             await q.DisposeAsync().ConfigureAwait(false);
 
             txLogInfo.Refresh();
@@ -533,7 +533,7 @@ namespace DiskQueue.Tests
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false, paranoidFlushing: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false, paranoidFlushing: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -550,7 +550,7 @@ namespace DiskQueue.Tests
                 txLog.Flush();
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), trimTransactionLogOnDispose: false)
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -563,7 +563,7 @@ namespace DiskQueue.Tests
             }
 
             var data = new List<int>();
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 var dequeue = await session.Dequeue().ConfigureAwait(false);

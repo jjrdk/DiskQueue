@@ -26,7 +26,7 @@ namespace AsyncDiskQueue
             while (!cancellationToken.IsCancellationRequested)
             {
                 var data = await session.Dequeue(cancellationToken).ConfigureAwait(false);
-                if (ReferenceEquals(null, data) || data.Equals(default(T)))
+                if (data is null || data.Equals(default(T)))
                 {
                     count = Math.Min(10, count + 1);
                     await Task.Delay(count * 100, cancellationToken).ConfigureAwait(false);

@@ -43,7 +43,7 @@ namespace AsyncDiskQueue.Implementation
         /// </summary>
         public bool Equals(Entry obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
+            if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
             return obj.FileNumber == FileNumber && obj.Start == Start && obj.Length == Length;
         }
@@ -53,7 +53,7 @@ namespace AsyncDiskQueue.Implementation
         /// </summary>
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
+            if (obj is null) return false;
             if (ReferenceEquals(this, obj)) return true;
             return Equals(obj as Entry);
         }

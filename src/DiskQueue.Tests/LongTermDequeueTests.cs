@@ -20,7 +20,7 @@ namespace DiskQueue.Tests
         public async Task Setup()
         {
             _source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            _q = await PersistentQueue.Create("./queue", Substitute.For<ILogger<IPersistentQueue>>(), cancellationToken: _source.Token).ConfigureAwait(false);
+            _q = await PersistentQueue.Create("./queue", Substitute.For<ILoggerFactory>(), cancellationToken: _source.Token).ConfigureAwait(false);
         }
 
         [TearDown]

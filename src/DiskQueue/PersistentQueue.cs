@@ -54,6 +54,7 @@ namespace AsyncDiskQueue
         private volatile bool disposed;
         private FileStream fileLock;
         private readonly SymmetricAlgorithm symmetricAlgorithm;
+        private readonly ILoggerFactory loggerFactory;
         private readonly ILogger<IPersistentQueue> logger;
         private readonly bool trimTransactionLogOnDispose;
         private readonly int suggestedReadBuffer;
@@ -74,7 +75,7 @@ namespace AsyncDiskQueue
             int suggestedReadBuffer,
             int suggestedWriteBuffer,
             SymmetricAlgorithm symmetricAlgorithm,
-            ILogger<IPersistentQueue> logger)
+            ILoggerFactory loggerFactory)
         {
             if (path == null)
             {
@@ -83,7 +84,8 @@ namespace AsyncDiskQueue
 
             this.trimTransactionLogOnDispose = trimTransactionLogOnDispose;
             this.symmetricAlgorithm = symmetricAlgorithm;
-            this.logger = logger;
+            this.loggerFactory = loggerFactory;
+            this.logger = loggerFactory.CreateLogger<IPersistentQueue>();
             lock (ConfigLock)
             {
                 disposed = true;
@@ -105,14 +107,15 @@ namespace AsyncDiskQueue
 
                     LockQueue();
                 }
-                catch (UnauthorizedAccessException)
+                catch (UnauthorizedAccessException ex)
                 {
+                    logger.LogError(ex, "Unauthorized access");
                     throw new UnauthorizedAccessException(
                         $"Directory \"{path}\" does not exist or is missing write permissions");
                 }
                 catch (IOException e)
                 {
-                    //GC.SuppressFinalize(this); //avoid finalizing invalid instance
+                    logger.LogError(e, "IO exception");
                     throw new InvalidOperationException("Another instance of the queue is already in action, or directory does not exists", e);
                 }
             }
@@ -122,7 +125,7 @@ namespace AsyncDiskQueue
         /// Creates a new instance of a persistent queue.
         /// </summary>
         /// <param name="path">The storage path for queue files.</param>
-        /// <param name="logger">The logger.</param>
+        /// <param name="loggerFactory">The logger.</param>
         /// <param name="maxWait">The max wait time to create the queue.</param>
         /// <param name="maxFileSize">The max size for data files.</param>
         /// <param name="throwOnConflict">Throw on file conflicts.</param>
@@ -135,7 +138,7 @@ namespace AsyncDiskQueue
         /// <returns>An <see cref="IPersistentQueue"/> as an async operation.</returns>
         public static Task<IPersistentQueue> Create(
             string path,
-            ILogger<IPersistentQueue> logger,
+            ILoggerFactory loggerFactory,
             TimeSpan maxWait,
             int maxFileSize = Constants._32Megabytes,
             bool throwOnConflict = true,
@@ -149,7 +152,7 @@ namespace AsyncDiskQueue
             using var source = new CancellationTokenSource(maxWait);
             return Create(
                 path,
-                logger,
+                loggerFactory,
                 maxFileSize: maxFileSize,
                 throwOnConflict: throwOnConflict,
                 suggestedMaxTransactionLogSize: suggestedMaxTransactionLogSize,
@@ -165,7 +168,7 @@ namespace AsyncDiskQueue
         /// Creates a new instance of a persistent queue.
         /// </summary>
         /// <param name="path">The storage path for queue files.</param>
-        /// <param name="logger">The logger.</param>
+        /// <param name="loggerFactory">The logger.</param>
         /// <param name="maxFileSize">The max size for data files.</param>
         /// <param name="throwOnConflict">Throw on file conflicts.</param>
         /// <param name="suggestedMaxTransactionLogSize">The suggested transaction log size.</param>
@@ -178,7 +181,7 @@ namespace AsyncDiskQueue
         /// <returns>An <see cref="IPersistentQueue"/> as an async operation.</returns>
         public static async Task<IPersistentQueue> Create(
             string path,
-            ILogger<IPersistentQueue> logger,
+            ILoggerFactory loggerFactory,
             int maxFileSize = Constants._32Megabytes,
             bool throwOnConflict = true,
             int suggestedMaxTransactionLogSize = Constants._32Megabytes,
@@ -189,6 +192,7 @@ namespace AsyncDiskQueue
             SymmetricAlgorithm symmetricAlgorithm = null,
             CancellationToken cancellationToken = default)
         {
+            var logger = loggerFactory.CreateLogger<IPersistentQueue>();
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -207,16 +211,16 @@ namespace AsyncDiskQueue
                             suggestedReadBuffer,
                             suggestedWriteBuffer,
                             symmetricAlgorithm,
-                            logger);
+                            loggerFactory);
 
                         try
                         {
                             instance.ReadMetaState();
                             await instance.ReadTransactionLog().ConfigureAwait(false);
                         }
-                        catch (Exception)
+                        catch (Exception e)
                         {
-                            // GC.SuppressFinalize(instance); //avoid finalizing invalid instance
+                            logger.LogError(e, "Error creating instance");
                             instance.UnlockQueue();
                             throw;
                         }
@@ -228,6 +232,7 @@ namespace AsyncDiskQueue
                     }
                     catch (DirectoryNotFoundException)
                     {
+                        logger.LogError("Error creating instance");
                         throw new Exception("Target storagePath does not exist or is not accessible");
                     }
                     catch (PlatformNotSupportedException ex)
@@ -237,6 +242,7 @@ namespace AsyncDiskQueue
                     }
                     catch (UnableToSetupException)
                     {
+                        logger.LogError("Unable to set up");
                         throw;
                     }
                     catch (Exception)
@@ -463,10 +469,14 @@ namespace AsyncDiskQueue
                 }
                 catch (Exception)
                 {
+                    logger.LogError("Delay reading transaction log");
                     await Task.Delay(250).ConfigureAwait(false);
                 }
             }
-            throw new TimeoutException("Could not acquire transaction log lock");
+
+            const string couldNotAcquireTransactionLogLock = "Could not acquire transaction log lock";
+            logger.LogError(couldNotAcquireTransactionLogLock);
+            throw new TimeoutException(couldNotAcquireTransactionLogLock);
         }
 
         async Task<Entry> IPersistentQueueStore.Dequeue(CancellationToken cancellationToken)
@@ -585,7 +595,8 @@ namespace AsyncDiskQueue
 
         IPersistentQueueSession IPersistentQueue.OpenSession()
         {
-            return new PersistentQueueSession(this, CreateWriter(), suggestedWriteBuffer, symmetricAlgorithm);
+            logger.LogInformation("Opening session");
+            return new PersistentQueueSession(this, CreateWriter(), suggestedWriteBuffer, symmetricAlgorithm, loggerFactory.CreateLogger<IPersistentQueueSession>());
         }
 
         void IPersistentQueueStore.Reinstate(IEnumerable<Operation> reinstatedOperations)
