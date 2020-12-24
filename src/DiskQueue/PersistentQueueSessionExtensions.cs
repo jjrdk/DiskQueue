@@ -36,6 +36,8 @@ namespace AsyncDiskQueue
                     count = 0;
                     yield return data;
                 }
+
+                await session.Flush(cancellationToken).ConfigureAwait(false);
             }
         }
 
