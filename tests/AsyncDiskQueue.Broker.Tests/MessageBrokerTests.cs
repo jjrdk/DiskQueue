@@ -21,7 +21,7 @@ namespace AsyncDiskQueue.Broker.Tests
                 return Task.CompletedTask;
             }
 
-            var message = new TestItem {Value = "test"};
+            var message = new TestItem { Value = "test" };
             await using var broker = new MessageBrokerImpl(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>());
             await using var subscription = broker.Subscribe<TestItem>(Handle);
 
@@ -43,7 +43,7 @@ namespace AsyncDiskQueue.Broker.Tests
                 return Task.CompletedTask;
             }
 
-            var message = new TestItem {Value = "test"};
+            var message = new TestItem { Value = "test" };
             await using var broker = new MessageBrokerImpl(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>());
             await using var subscription = broker.Subscribe<ITestItem>(Handle);
 
@@ -52,6 +52,28 @@ namespace AsyncDiskQueue.Broker.Tests
             var handled = waitHandle.WaitOne(TimeSpan.FromSeconds(20));
 
             Assert.True(handled);
+        }
+
+        [Fact]
+        public async Task WhenPublishingInterfaceMessageThenIsNotReceivedByImplementationSubscriber()
+        {
+            var waitHandle = new ManualResetEvent(false);
+
+            Task Handle(TestItem data)
+            {
+                waitHandle.Set();
+                return Task.CompletedTask;
+            }
+
+            var message = new TestItem { Value = "test" };
+            await using var broker = new MessageBrokerImpl(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>());
+            await using var subscription = broker.Subscribe<TestItem>(Handle);
+
+            await broker.Publish<ITestItem>("tester", message).ConfigureAwait(false);
+
+            var handled = waitHandle.WaitOne(TimeSpan.FromSeconds(3));
+
+            Assert.False(handled);
         }
 
         [Fact]
@@ -65,7 +87,7 @@ namespace AsyncDiskQueue.Broker.Tests
                 return Task.CompletedTask;
             }
 
-            var message = new TestItem {Value = "test"};
+            var message = new TestItem { Value = "test" };
             await using var broker = new MessageBrokerImpl(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>());
             await using (broker.Subscribe<TestItem>(Handle))
             {
