@@ -360,18 +360,21 @@ namespace AsyncDiskQueue
                     {
                         transactionLogSemaphore.Release();
                     }
-
-                    //GC.SuppressFinalize(this);
                 }
                 finally
                 {
                     UnlockQueue();
                 }
+
             }
             finally
             {
                 ConfigSemaphore.Release();
             }
+
+            entriesSemaphore.Dispose();
+            transactionLogSemaphore.Dispose();
+            writerSemaphore.Dispose();
         }
 
         async Task IPersistentQueueStore.AcquireWriter(

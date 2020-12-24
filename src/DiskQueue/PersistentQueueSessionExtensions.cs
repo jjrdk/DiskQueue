@@ -29,7 +29,14 @@ namespace AsyncDiskQueue
                 if (data is null || data.Equals(default(T)))
                 {
                     count = Math.Min(10, count + 1);
-                    await Task.Delay(count * 100, cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        await Task.Delay(count * 100, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        break;
+                    }
                 }
                 else
                 {
