@@ -24,7 +24,6 @@ namespace AsyncDiskQueue.Broker.Tests
             var message = new TestItem { Value = "test" };
             await using var broker = new MessageBrokerImpl(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>());
             await using var subscription = broker.Subscribe<TestItem>(Handle);
-
             await broker.Publish("tester", message).ConfigureAwait(false);
 
             var handled = waitHandle.WaitOne(TimeSpan.FromSeconds(20));

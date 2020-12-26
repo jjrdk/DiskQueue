@@ -15,7 +15,7 @@ namespace DiskQueue.Tests
     public class MultipleProcessAccessTests
     {
         [Test,
-        Description("Multiple PersistentQueue instances are " +
+        Description("Multiple DiskQueue instances are " +
                     "pretty much the same as multiple processes to " +
                     "the DiskQueue library")]
         public void Can_access_from_multiple_queues_if_used_carefully()
@@ -60,7 +60,7 @@ namespace DiskQueue.Tests
         static async Task AddToQueue(byte[] data)
         {
             await Task.Delay(150).ConfigureAwait(false);
-            await using var queue = await PersistentQueue.Create(SharedStorage, Substitute.For<ILoggerFactory>(), TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            await using var queue = await DiskQueue.Create(SharedStorage, Substitute.For<ILoggerFactory>(), TimeSpan.FromSeconds(30)).ConfigureAwait(false);
             using var session = queue.OpenSession();
             await session.Enqueue(data).ConfigureAwait(false);
             await session.Flush().ConfigureAwait(false);
@@ -69,7 +69,7 @@ namespace DiskQueue.Tests
         static async Task<byte[]> ReadQueue()
         {
             await Task.Delay(150).ConfigureAwait(false);
-            await using var queue = await PersistentQueue.Create(SharedStorage, Substitute.For<ILoggerFactory>(), TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            await using var queue = await DiskQueue.Create(SharedStorage, Substitute.For<ILoggerFactory>(), TimeSpan.FromSeconds(30)).ConfigureAwait(false);
             using var session = queue.OpenSession();
             var data = await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
             await session.Flush().ConfigureAwait(false);

@@ -7,7 +7,7 @@ namespace AsyncDiskQueue
     using System.Threading.Tasks;
     using Implementation;
 
-    internal interface IPersistentQueueStore
+    internal interface IDiskQueueStore
     {
         /// <summary>
         /// <para>UNSAFE. Incorrect use will result in data loss.</para>

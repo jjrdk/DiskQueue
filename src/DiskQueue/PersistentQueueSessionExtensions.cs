@@ -12,14 +12,14 @@ namespace AsyncDiskQueue
     public static class PersistentQueueSessionExtensions
     {
         /// <summary>
-        /// Creates an <see cref="IAsyncEnumerable{T}"/> from the <see cref="IPersistentQueueSession{T}"/>.
+        /// Creates an <see cref="IAsyncEnumerable{T}"/> from the <see cref="IDiskQueueSession"/>.
         /// </summary>
         /// <typeparam name="T">The <see cref="Type"/> of item held in the queue.</typeparam>
-        /// <param name="session">The <see cref="IPersistentQueueSession{T}"/> to convert.</param>
+        /// <param name="session">The <see cref="IDiskQueueSession"/> to convert.</param>
         /// <param name="cancellationToken">The <see cref="CancellationToken"/> for the async operation.</param>
         /// <returns>An <see cref="IAsyncEnumerable{T}"/> returning non-null queue values.</returns>
         public static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(
-            this IPersistentQueueSession<T> session,
+            this IDiskQueueSession<T> session,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var count = 0;
@@ -49,13 +49,13 @@ namespace AsyncDiskQueue
         }
 
         /// <summary>
-        /// Creates an <see cref="IAsyncEnumerable{T}"/> from the <see cref="IPersistentQueueSession{T}"/>.
+        /// Creates an <see cref="IAsyncEnumerable{T}"/> from the <see cref="IDiskQueueSession"/>.
         /// </summary>
-        /// <param name="session">The <see cref="IPersistentQueueSession{T}"/> to convert.</param>
+        /// <param name="session">The <see cref="IDiskQueueSession"/> to convert.</param>
         /// <param name="cancellationToken">The <see cref="CancellationToken"/> for the async operation.</param>
         /// <returns>An <see cref="IAsyncEnumerable{T}"/> returning non-null queue values.</returns>
         public static async IAsyncEnumerable<byte[]> ToAsyncEnumerable(
-            this IPersistentQueueSession session,
+            this IDiskQueueSession session,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var count = 0;

@@ -11,7 +11,7 @@ namespace AsyncDiskQueue.Implementation
 		/// Return value for key if present, otherwise return default.
 		/// No new keys or values will be added to the dictionary.
 		/// </summary>
-		public static T GetValueOrDefault<T, K>(this IDictionary<K, T> self, K key)
+		public static T GetValueOrDefault<T, TK>(this IDictionary<TK, T> self, TK key)
 		{
 			return self.TryGetValue(key, out var value) == false ? default : value;
 		}

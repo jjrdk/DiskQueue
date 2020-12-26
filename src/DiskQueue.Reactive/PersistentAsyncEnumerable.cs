@@ -9,7 +9,7 @@
     public static class PersistentAsyncEnumerable
     {
         public static async IAsyncEnumerable<byte[]> ToAsyncEnumerable(
-            this IPersistentQueueSession session,
+            this IDiskQueueSession session,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -26,7 +26,7 @@
         }
 
         public static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(
-            this IPersistentQueueSession session,
+            this IDiskQueueSession session,
             Func<byte[], T> deserializer,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {

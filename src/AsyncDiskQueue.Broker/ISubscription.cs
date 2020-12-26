@@ -3,8 +3,9 @@
     using System;
     using System.Threading.Tasks;
 
-    public interface ISubscription
+    public interface ISubscription: IAsyncDisposable
     {
+        SubscriberInfo SubscriberInfo { get; }
     }
 
     public interface ISubscription<in T> : ISubscription

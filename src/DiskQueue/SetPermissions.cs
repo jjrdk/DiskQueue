@@ -56,7 +56,7 @@
         {
             if (RunningUnderPosix)
             {
-                UnsafeNativeMethods.chmod(path, UnixFilePermissions.ACCESSPERMS);
+                UnsafeNativeMethods.Chmod(path, UnixFilePermissions.Accessperms);
             }
             else
             {
@@ -77,7 +77,7 @@
         {
             if (RunningUnderPosix)
             {
-                UnsafeNativeMethods.chmod(path, UnixFilePermissions.ACCESSPERMS);
+                UnsafeNativeMethods.Chmod(path, UnixFilePermissions.Accessperms);
             }
             else
             {

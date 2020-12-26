@@ -21,7 +21,7 @@ namespace DiskQueue.Tests
             const int target = 100;
             var rnd = new Random();
 
-            var _subject = await PersistentQueue.Create("queue_a", Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+            var _subject = await DiskQueue.Create("queue_a", Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
             var t1 = Task.Run(
                 async () =>
                 {
@@ -72,7 +72,7 @@ namespace DiskQueue.Tests
                 {
                     for (var i = 0; i < target; i++)
                     {
-                        await using var subject = await PersistentQueue.Create("queue_b", Substitute.For<ILoggerFactory>(), TimeSpan.FromSeconds(10))
+                        await using var subject = await DiskQueue.Create("queue_b", Substitute.For<ILoggerFactory>(), TimeSpan.FromSeconds(10))
                             .ConfigureAwait(false);
                         using var session = subject.OpenSession();
                         Console.Write("(");
@@ -88,7 +88,7 @@ namespace DiskQueue.Tests
                     for (var i = 0; i < target; i++)
                     {
                         using var source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                        var subject = await PersistentQueue
+                        var subject = await DiskQueue
                             .Create("queue_b", Substitute.For<ILoggerFactory>(), cancellationToken: source.Token)
                             .ConfigureAwait(false);
                         using var session = subject.OpenSession();

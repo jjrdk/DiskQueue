@@ -17,7 +17,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Paranoid_flushing_still_respects_session_rollback()
         {
-            await using var queue = await PersistentQueue.Create("./queue", Substitute.For<ILoggerFactory>(), paranoidFlushing: true).ConfigureAwait(false);
+            await using var queue = await DiskQueue.Create("./queue", Substitute.For<ILoggerFactory>(), paranoidFlushing: true).ConfigureAwait(false);
 
             // Flush only `_one`
             using (var s1 = queue.OpenSession())

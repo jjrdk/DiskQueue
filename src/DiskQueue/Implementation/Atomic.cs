@@ -51,7 +51,7 @@ namespace AsyncDiskQueue.Implementation
 	/// </summary>
 	internal static class Atomic
 	{
-		static readonly object _lock = new object();
+		static readonly object Lock = new object();
 
 		/// <summary>
 		/// Run a read action over a file by name.
@@ -62,7 +62,7 @@ namespace AsyncDiskQueue.Implementation
 		/// <param name="action">Action to consume file stream. You do not need to close the stream yourself.</param>
 		public static void Read(string path, Action<Stream> action)
 		{
-			lock (_lock)
+			lock (Lock)
 			{
 				if (File.Exists(path + ".old_copy"))
 				{
@@ -89,7 +89,7 @@ namespace AsyncDiskQueue.Implementation
 		/// <param name="action">Action to write into file stream. You do not need to close the stream yourself.</param>
 		public static void Write(string path, Action<Stream> action)
 		{
-			lock (_lock)
+			lock (Lock)
 			{
 				// if the old copy file exists, this means that we have
 				// a previous corrupt write, so we will not overrite it, but

@@ -17,7 +17,7 @@
 		/// <param name="path">Path to set</param>
 		/// <param name="mode">Permissions mode flags</param>
 		/// <returns>System result status</returns>
-		public static int chmod(string path, UnixFilePermissions mode)
+		public static int Chmod(string path, UnixFilePermissions mode)
 		{
 			return sys_chmod(path, (uint)mode);
 		} 

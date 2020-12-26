@@ -8,13 +8,13 @@
 
     public class PersistentBuffer : IObservable<byte[]>, IObserver<byte[]>, IAsyncDisposable
     {
-        private readonly IPersistentQueue queue;
+        private readonly IDiskQueue queue;
         private readonly int retryCount;
         private CancellationTokenSource tokenSource;
         private readonly List<IObserver<byte[]>> subscribers = new List<IObserver<byte[]>>();
         private Task work;
 
-        public PersistentBuffer(IPersistentQueue queue, int retryCount)
+        public PersistentBuffer(IDiskQueue queue, int retryCount)
         {
             this.queue = queue;
             this.retryCount = retryCount;

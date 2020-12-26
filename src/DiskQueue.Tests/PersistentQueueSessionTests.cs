@@ -25,12 +25,12 @@ namespace DiskQueue.Tests
             var pendingWriteException = Assert.ThrowsAsync<AggregateException>(
                 async () =>
                 {
-                    using var session = new PersistentQueueSession(
+                    using var session = new DiskQueueSession(
                         queueStub,
                         limitedSizeStream,
                         1024 * 1024,
                         null,
-                        Substitute.For<ILogger<IPersistentQueueSession>>());
+                        Substitute.For<ILogger<IDiskQueueSession>>());
                     await session.Enqueue(new byte[64 * 1024 * 1024 + 1]).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
                 });
@@ -49,12 +49,12 @@ namespace DiskQueue.Tests
             var notSupportedException = Assert.ThrowsAsync<AggregateException>(
                 async () =>
                 {
-                    using var session = new PersistentQueueSession(
+                    using var session = new DiskQueueSession(
                         queueStub,
                         limitedSizeStream,
                         1024 * 1024,
                         null,
-                        Substitute.For<ILogger<IPersistentQueueSession>>());
+                        Substitute.For<ILogger<IDiskQueueSession>>());
                     await session.Enqueue(new byte[64]).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
                 });
@@ -65,7 +65,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task If_data_stream_is_truncated_will_raise_error()
         {
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
+            await using (var queue = await DiskQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
@@ -80,7 +80,7 @@ namespace DiskQueue.Tests
             var invalidOperationException = Assert.ThrowsAsync<InvalidOperationException>(
              async () =>
                 {
-                    await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+                    await using var queue = await DiskQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
                     using var session = queue.OpenSession();
                     await session.Dequeue().ConfigureAwait(false);
                 });
@@ -90,9 +90,9 @@ namespace DiskQueue.Tests
                 Is.EqualTo("End of file reached while trying to read queue item"));
         }
 
-        private static IPersistentQueueStore PersistentQueueWithMemoryStream(MemoryStream limitedSizeStream)
+        private static IDiskQueueStore PersistentQueueWithMemoryStream(MemoryStream limitedSizeStream)
         {
-            var queueStub = Substitute.For<IPersistentQueueStore>();
+            var queueStub = Substitute.For<IDiskQueueStore>();
 
             queueStub.WhenForAnyArgs(async x => await x.AcquireWriter(null, null, null).ConfigureAwait(false))
                 .Do(c => CallActionArgument(c, limitedSizeStream).Wait());

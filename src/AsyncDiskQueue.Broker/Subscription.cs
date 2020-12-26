@@ -4,7 +4,7 @@
     using System.Collections.Generic;
     using System.Threading.Tasks;
 
-    internal class Subscription<T> : ISubscription<T>, IAsyncDisposable
+    internal class Subscription<T> : ISubscription<T>
     {
         private readonly ICollection<ISubscription> _subscriptions;
         private Func<Task> _onUnsubscribe;
@@ -15,6 +15,9 @@
             _subscriptions = subscriptions;
             _onUnsubscribe = onUnsubscribe;
         }
+
+        /// <inheritdoc />
+        public SubscriberInfo SubscriberInfo { get; } = new();
 
         /// <inheritdoc />
         public bool Persistent { get; } = false;

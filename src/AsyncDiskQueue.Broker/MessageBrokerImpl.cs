@@ -11,6 +11,33 @@
     using Microsoft.Extensions.Logging;
     using Newtonsoft.Json;
 
+    internal class SubscriberExchange<T> : ISubscription<T>
+    {
+        private readonly IDiskQueue _queue;
+        private readonly ISubscription<T> _subscription;
+
+        public SubscriberExchange(IDiskQueue queue, ISubscription<T> subscription)
+        {
+            _queue = queue;
+            _subscription = subscription;
+        }
+
+        /// <inheritdoc />
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        /// <inheritdoc />
+        public SubscriberInfo SubscriberInfo => _subscription.SubscriberInfo;
+
+        /// <inheritdoc />
+        public bool Persistent => _subscription.Persistent;
+
+        /// <inheritdoc />
+        public Func<T, Task> Handler => _subscription.Handler;
+    }
+
     public class MessageBrokerImpl : IMessageBroker
     {
         private readonly JsonSerializerSettings _serializerSettings;
@@ -18,7 +45,7 @@
         private readonly ILoggerFactory _loggerFactory;
         private readonly HashSet<Type> _topics = new();
         private readonly Dictionary<Type, (CancellationTokenSource, Task)> _topicWorkers = new();
-        private readonly ConcurrentDictionary<string, Task<IPersistentQueue>> _queues = new();
+        private readonly ConcurrentDictionary<string, Task<IDiskQueue>> _queues = new();
         private readonly List<ISubscription> _subscribers;
         private readonly ConcurrentDictionary<Type, Type[]> _typesMap = new();
 
@@ -72,25 +99,25 @@
                 .FirstOrDefault(s => ReferenceEquals(s.Handler, subscription));
             if (current != null)
             {
-                return current as IAsyncDisposable;
+                return current;
             }
 
             EnsureTopicWorker<T>();
             var item = new Subscription<T>(subscription, _subscribers, OnUnsubscribe<T>);
             _subscribers.Add(item);
 
-            //var delegates = _subscribers.Where(s => s.GetType().GetInterfaces().Contains(typeof(ISubscription<T>)));
-
             return item;
         }
 
         public async ValueTask DisposeAsync()
         {
+            var subscriberTasks = _subscribers.Select(s => s.DisposeAsync());
+            await Task.WhenAll(subscriberTasks.Cast<Task>()).ConfigureAwait(false);
+            _subscribers.Clear();
             var workerTasks = _topicWorkers.Values.Select(
                 tuple => StopWorker(tuple.Item1, tuple.Item2));
             await Task.WhenAll(workerTasks).ConfigureAwait(false);
             _topicWorkers.Clear();
-            _subscribers?.Clear();
 
             var tasks = _queues.Select(
                 async queue =>
@@ -120,11 +147,11 @@
             return JsonConvert.DeserializeObject<MessagePayload>(Encoding.UTF8.GetString(bytes), _serializerSettings);
         }
 
-        private Task<IPersistentQueue> GetQueue(string topicAddress)
+        private Task<IDiskQueue> GetQueue(string topicAddress)
         {
             return _queues.GetOrAdd(
                 topicAddress,
-                (s, l) => PersistentQueue.Create(
+                (s, l) => DiskQueue.Create(
                     Path.Combine(_directory.FullName, "topics", s),
                     l,
                     paranoidFlushing: false),
@@ -164,7 +191,8 @@
             where T : class
         {
             var queue = await _queues.GetOrAdd(GetTopicAddress(typeof(T)), GetQueue).ConfigureAwait(false);
-            await foreach (var item in queue.OpenSession(Serialize, Deserialize)
+            using var diskQueueSession = queue.OpenSession(Serialize, Deserialize);
+            await foreach (var item in diskQueueSession
                 .ToAsyncEnumerable(cancellationToken: cancellationToken))
             {
                 if (cancellationToken.IsCancellationRequested)

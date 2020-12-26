@@ -13,14 +13,14 @@ namespace DiskQueue.Tests
     [TestFixture]
     public class LongTermDequeueTests
     {
-        private IPersistentQueue _q;
+        private IDiskQueue _q;
         private CancellationTokenSource _source;
 
         [SetUp]
         public async Task Setup()
         {
             _source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            _q = await PersistentQueue.Create("./queue", Substitute.For<ILoggerFactory>(), cancellationToken: _source.Token).ConfigureAwait(false);
+            _q = await DiskQueue.Create("./queue", Substitute.For<ILoggerFactory>(), cancellationToken: _source.Token).ConfigureAwait(false);
         }
 
         [TearDown]
