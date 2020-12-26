@@ -25,7 +25,7 @@ namespace DiskQueue.Tests
             for (byte i = 0; i < 5; i++)
             {
                 using var session = queue.OpenSession();
-                await session.Enqueue(new[] {i}).ConfigureAwait(false);
+                await session.Enqueue(new[] { i }).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }
 
@@ -36,12 +36,12 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Can_get_count_of_items_after_queue_restart()
         {
-            await using (var queue = await DiskQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
+            await using (var queue = await DiskQueue.Create(Path, Substitute.For<ILoggerFactory>(), persistent: true).ConfigureAwait(false))
             {
                 for (byte i = 0; i < 5; i++)
                 {
                     using var session = queue.OpenSession();
-                    await session.Enqueue(new[] {i}).ConfigureAwait(false);
+                    await session.Enqueue(new[] { i }).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
                 }
             }

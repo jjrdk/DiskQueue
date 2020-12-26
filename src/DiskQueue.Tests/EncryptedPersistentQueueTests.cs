@@ -51,7 +51,7 @@ namespace DiskQueue.Tests
         public async Task Can_enqueue_and_dequeue_data_after_restarting_queue()
         {
             using var algo = CreateAlgo();
-            await using (var queue = await DiskQueue.Create(Path, Substitute.For<ILoggerFactory>(), symmetricAlgorithm: algo).ConfigureAwait(false))
+            await using (var queue = await DiskQueue.Create(Path, Substitute.For<ILoggerFactory>(), symmetricAlgorithm: algo, persistent: true).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);

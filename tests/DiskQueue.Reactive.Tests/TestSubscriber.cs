@@ -6,11 +6,11 @@ namespace DiskQueue.Reactive.Tests
 
     public class TestSubscriber : IObserver<byte[]>
     {
-        private readonly ManualResetEventSlim waitHandle;
+        private readonly ManualResetEventSlim _waitHandle;
 
         public TestSubscriber(ManualResetEventSlim waitHandle)
         {
-            this.waitHandle = waitHandle;
+            _waitHandle = waitHandle;
         }
 
         public byte[] LastMessage { get; private set; }
@@ -23,21 +23,21 @@ namespace DiskQueue.Reactive.Tests
         public void OnCompleted()
         {
             Completed = true;
-            waitHandle.Set();
+            _waitHandle.Set();
         }
 
         /// <inheritdoc />
         public void OnError(Exception error)
         {
             LastException = error;
-            waitHandle.Set();
+            _waitHandle.Set();
         }
 
         /// <inheritdoc />
         public void OnNext(byte[] value)
         {
             LastMessage = value;
-            waitHandle.Set();
+            _waitHandle.Set();
         }
     }
 }

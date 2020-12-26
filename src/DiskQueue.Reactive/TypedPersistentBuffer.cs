@@ -6,79 +6,79 @@ namespace AsyncDiskQueue.Reactive
 
     public class TypedPersistentBuffer<T> : IObserver<T>, IObservable<T>, IAsyncDisposable
     {
-        private readonly PersistentBuffer innerBuffer;
-        private readonly Func<T, byte[]> serializer;
-        private readonly Func<byte[], T> deserializer;
-        private readonly List<IObserver<byte[]>> observers = new List<IObserver<byte[]>>();
+        private readonly PersistentBuffer _innerBuffer;
+        private readonly Func<T, byte[]> _serializer;
+        private readonly Func<byte[], T> _deserializer;
+        private readonly List<IObserver<byte[]>> _observers = new List<IObserver<byte[]>>();
 
         public TypedPersistentBuffer(PersistentBuffer innerBuffer, Func<T, byte[]> serializer, Func<byte[], T> deserializer)
         {
-            this.innerBuffer = innerBuffer;
-            this.serializer = serializer;
-            this.deserializer = deserializer;
+            _innerBuffer = innerBuffer;
+            _serializer = serializer;
+            _deserializer = deserializer;
         }
 
         /// <inheritdoc />
         public ValueTask DisposeAsync()
         {
-            return innerBuffer.DisposeAsync();
+            return _innerBuffer.DisposeAsync();
         }
 
         /// <inheritdoc />
         public void OnCompleted()
         {
-            (innerBuffer as IObserver<byte[]>).OnCompleted();
+            (_innerBuffer as IObserver<byte[]>).OnCompleted();
         }
 
         /// <inheritdoc />
         public void OnError(Exception error)
         {
-            (innerBuffer as IObserver<byte[]>).OnError(error);
+            (_innerBuffer as IObserver<byte[]>).OnError(error);
         }
 
         /// <inheritdoc />
         public void OnNext(T value)
         {
-            var bytes = serializer(value);
-            (innerBuffer as IObserver<byte[]>).OnNext(bytes);
+            var bytes = _serializer(value);
+            (_innerBuffer as IObserver<byte[]>).OnNext(bytes);
         }
 
         /// <inheritdoc />
         public IDisposable Subscribe(IObserver<T> observer)
         {
             return new Subscription<byte[]>(
-                new TranslatingObserver(observer, deserializer),
-                observers);
+                new TranslatingObserver(observer, _deserializer),
+                _observers);
         }
 
         private class TranslatingObserver : IObserver<byte[]>
         {
-            private readonly IObserver<T> innerObserver;
-            private readonly Func<byte[], T> deserializer;
+            private readonly IObserver<T> _innerObserver;
+            private readonly Func<byte[], T> _deserializer;
 
             public TranslatingObserver(IObserver<T> innerObserver, Func<byte[], T> deserializer)
             {
-                this.innerObserver = innerObserver;
-                this.deserializer = deserializer;
+                _innerObserver = innerObserver;
+                _deserializer = deserializer;
             }
 
             /// <inheritdoc />
             public void OnCompleted()
             {
-                innerObserver.OnCompleted();
+                _innerObserver.OnCompleted();
             }
 
             /// <inheritdoc />
             public void OnError(Exception error)
             {
-                innerObserver.OnError(error);
+                _innerObserver.OnError(error);
             }
 
             /// <inheritdoc />
             public void OnNext(byte[] value)
             {
-                var item = deserializer(value);
-                innerObserver.OnNext(item);
+                var item = _deserializer(value);
+                _innerObserver.OnNext(item);
             }
         }
     }

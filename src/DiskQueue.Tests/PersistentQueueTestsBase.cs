@@ -9,7 +9,7 @@ namespace DiskQueue.Tests
 	public class PersistentQueueTestsBase
 	{
 		protected const string Path = @"./queue";
-		static readonly object _lock = new Object();
+		static readonly object Lock = new Object();
 
 		[SetUp]
 		public void Setup()
@@ -28,7 +28,7 @@ namespace DiskQueue.Tests
 
 		static void RebuildPath()
 		{
-			lock (_lock)
+			lock (Lock)
 			{
 				try
 				{

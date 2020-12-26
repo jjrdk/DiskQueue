@@ -34,7 +34,7 @@ namespace AsyncDiskQueue.Implementation
     /// </summary>
     internal class PendingWriteException : Exception
     {
-        private readonly Exception[] pendingWritesExceptions;
+        private readonly Exception[] _pendingWritesExceptions;
 
         /// <summary>
         /// Aggregate causing exceptions
@@ -42,7 +42,7 @@ namespace AsyncDiskQueue.Implementation
         public PendingWriteException(Exception[] pendingWritesExceptions)
             : base("Error during pending writes")
         {
-            this.pendingWritesExceptions = pendingWritesExceptions;
+            _pendingWritesExceptions = pendingWritesExceptions;
         }
 
         /// <summary>
@@ -50,7 +50,7 @@ namespace AsyncDiskQueue.Implementation
         /// </summary>
         public Exception[] PendingWritesExceptions
         {
-            get { return pendingWritesExceptions; }
+            get { return _pendingWritesExceptions; }
         }
 
         /// <summary>
@@ -61,7 +61,7 @@ namespace AsyncDiskQueue.Implementation
             get
             {
                 var sb = new StringBuilder(base.Message).Append(':');
-                foreach (var exception in pendingWritesExceptions)
+                foreach (var exception in _pendingWritesExceptions)
                 {
                     sb.AppendLine().Append(" - ").Append(exception.Message);
                 }
@@ -75,7 +75,7 @@ namespace AsyncDiskQueue.Implementation
         public override string ToString()
         {
             var sb = new StringBuilder(base.Message).Append(':');
-            foreach (var exception in pendingWritesExceptions)
+            foreach (var exception in _pendingWritesExceptions)
             {
                 sb.AppendLine().Append(" - ").Append(exception);
             }

@@ -41,30 +41,30 @@ namespace AsyncDiskQueue
     /// </summary>
     public class DiskQueue : IDiskQueue, IDiskQueueStore
     {
-        private readonly SemaphoreSlim entriesSemaphore = new SemaphoreSlim(1);
-        private readonly SemaphoreSlim writerSemaphore = new SemaphoreSlim(1);
-        private readonly SemaphoreSlim transactionLogSemaphore = new SemaphoreSlim(1);
-        private readonly HashSet<Entry> checkedOutEntries = new HashSet<Entry>();
-        private readonly Dictionary<int, int> countOfItemsPerFile = new Dictionary<int, int>();
-        private readonly LinkedList<Entry> entries = new LinkedList<Entry>();
-        private readonly string path;
-        private readonly bool throwOnConflict;
+        private readonly SemaphoreSlim _entriesSemaphore = new SemaphoreSlim(1);
+        private readonly SemaphoreSlim _writerSemaphore = new SemaphoreSlim(1);
+        private readonly SemaphoreSlim _transactionLogSemaphore = new SemaphoreSlim(1);
+        private readonly HashSet<Entry> _checkedOutEntries = new HashSet<Entry>();
+        private readonly Dictionary<int, int> _countOfItemsPerFile = new Dictionary<int, int>();
+        private readonly LinkedList<Entry> _entries = new LinkedList<Entry>();
+        private readonly string _path;
+        private readonly bool _throwOnConflict;
         private static readonly SemaphoreSlim ConfigSemaphore = new SemaphoreSlim(1);
         private static readonly object ConfigLock = new object();
-        private volatile bool disposed;
-        private FileStream fileLock;
-        private readonly SymmetricAlgorithm symmetricAlgorithm;
-        private readonly ILoggerFactory loggerFactory;
-        private readonly ILogger<IDiskQueue> logger;
+        private volatile bool _disposed;
+        private FileStream _fileLock;
+        private readonly SymmetricAlgorithm _symmetricAlgorithm;
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly ILogger<IDiskQueue> _logger;
         private readonly bool _persistent;
-        private readonly bool trimTransactionLogOnDispose;
-        private readonly int suggestedReadBuffer;
-        private readonly int suggestedWriteBuffer;
-        private readonly long suggestedMaxTransactionLogSize;
-        private readonly int maxFileSize;
-        private readonly bool paranoidFlushing;
-        private int currentFileNumber;
-        private long currentFilePosition;
+        private readonly bool _trimTransactionLogOnDispose;
+        private readonly int _suggestedReadBuffer;
+        private readonly int _suggestedWriteBuffer;
+        private readonly long _suggestedMaxTransactionLogSize;
+        private readonly int _maxFileSize;
+        private readonly bool _paranoidFlushing;
+        private int _currentFileNumber;
+        private long _currentFilePosition;
 
         private DiskQueue(
             string path,
@@ -85,40 +85,40 @@ namespace AsyncDiskQueue
             }
 
             _persistent = persistent;
-            this.trimTransactionLogOnDispose = trimTransactionLogOnDispose;
-            this.symmetricAlgorithm = symmetricAlgorithm;
-            this.loggerFactory = loggerFactory;
-            this.logger = loggerFactory.CreateLogger<IDiskQueue>();
+            _trimTransactionLogOnDispose = trimTransactionLogOnDispose;
+            _symmetricAlgorithm = symmetricAlgorithm;
+            _loggerFactory = loggerFactory;
+            _logger = loggerFactory.CreateLogger<IDiskQueue>();
             lock (ConfigLock)
             {
-                disposed = true;
-                this.trimTransactionLogOnDispose = trimTransactionLogOnDispose;
-                this.paranoidFlushing = paranoidFlushing;
-                suggestedMaxTransactionLogSize = maxTransactionLogSize;
-                this.suggestedReadBuffer = suggestedReadBuffer;
-                this.suggestedWriteBuffer = suggestedWriteBuffer;
-                this.throwOnConflict = throwOnConflict;
+                _disposed = true;
+                _trimTransactionLogOnDispose = trimTransactionLogOnDispose;
+                _paranoidFlushing = paranoidFlushing;
+                _suggestedMaxTransactionLogSize = maxTransactionLogSize;
+                _suggestedReadBuffer = suggestedReadBuffer;
+                _suggestedWriteBuffer = suggestedWriteBuffer;
+                _throwOnConflict = throwOnConflict;
 
-                this.maxFileSize = maxFileSize;
+                _maxFileSize = maxFileSize;
                 try
                 {
-                    this.path = Path.GetFullPath(path);
-                    if (!Directory.Exists(this.path))
+                    _path = Path.GetFullPath(path);
+                    if (!Directory.Exists(_path))
                     {
-                        CreateDirectory(this.path);
+                        CreateDirectory(_path);
                     }
 
                     LockQueue();
                 }
                 catch (UnauthorizedAccessException ex)
                 {
-                    logger.LogError(ex, "Unauthorized access");
+                    _logger.LogError(ex, "Unauthorized access");
                     throw new UnauthorizedAccessException(
                         $"Directory \"{path}\" does not exist or is missing write permissions");
                 }
                 catch (IOException e)
                 {
-                    logger.LogError(e, "IO exception");
+                    _logger.LogError(e, "IO exception");
                     throw new InvalidOperationException("Another instance of the queue is already in action, or directory does not exists", e);
                 }
             }
@@ -144,7 +144,7 @@ namespace AsyncDiskQueue
             string path,
             ILoggerFactory loggerFactory,
             TimeSpan maxWait,
-            bool persistent = false,
+            bool persistent = true,
             int maxFileSize = Constants._32Megabytes,
             bool throwOnConflict = true,
             int suggestedMaxTransactionLogSize = Constants._32Megabytes,
@@ -189,7 +189,7 @@ namespace AsyncDiskQueue
         public static async Task<IDiskQueue> Create(
             string path,
             ILoggerFactory loggerFactory,
-            bool persistent = false,
+            bool persistent = true,
             int maxFileSize = Constants._32Megabytes,
             bool throwOnConflict = true,
             int suggestedMaxTransactionLogSize = Constants._32Megabytes,
@@ -234,7 +234,7 @@ namespace AsyncDiskQueue
                             throw;
                         }
 
-                        instance.disposed = false;
+                        instance._disposed = false;
 
                         logger.LogDebug("Queue instance created");
                         return instance;
@@ -273,21 +273,21 @@ namespace AsyncDiskQueue
 
         private void UnlockQueue()
         {
-            logger.LogDebug("Unlock queue");
-            var target = Path.Combine(path, "lock");
-            if (fileLock != null)
+            _logger.LogDebug("Unlock queue");
+            var target = Path.Combine(_path, "lock");
+            if (_fileLock != null)
             {
-                fileLock.Dispose();
+                _fileLock.Dispose();
                 File.Delete(target);
             }
-            fileLock = null;
+            _fileLock = null;
         }
 
         private void LockQueue()
         {
-            logger.LogDebug("Lock queue");
-            var target = Path.Combine(path, "lock");
-            fileLock = new FileStream(
+            _logger.LogDebug("Lock queue");
+            var target = Path.Combine(_path, "lock");
+            _fileLock = new FileStream(
                 target,
                 FileMode.Create,
                 FileAccess.ReadWrite,
@@ -304,18 +304,18 @@ namespace AsyncDiskQueue
         {
             get
             {
-                if (entries == null)
+                if (_entries == null)
                 {
                     return 0;
                 }
                 try
                 {
-                    entriesSemaphore.Wait();
-                    return entries.Count + checkedOutEntries.Count;
+                    _entriesSemaphore.Wait();
+                    return _entries.Count + _checkedOutEntries.Count;
                 }
                 finally
                 {
-                    entriesSemaphore.Release();
+                    _entriesSemaphore.Release();
                 }
             }
         }
@@ -326,21 +326,21 @@ namespace AsyncDiskQueue
             {
                 try
                 {
-                    entriesSemaphore.Wait();
-                    return entries.Count + checkedOutEntries.Count;
+                    _entriesSemaphore.Wait();
+                    return _entries.Count + _checkedOutEntries.Count;
                 }
                 finally
                 {
-                    entriesSemaphore.Release();
+                    _entriesSemaphore.Release();
                 }
             }
         }
 
-        private string TransactionLog => Path.Combine(path, "transaction.log");
+        private string TransactionLog => Path.Combine(_path, "transaction.log");
 
-        private string Meta => Path.Combine(path, "meta.state");
+        private string Meta => Path.Combine(_path, "meta.state");
 
-        int IDiskQueueStore.CurrentFileNumber => currentFileNumber;
+        int IDiskQueueStore.CurrentFileNumber => _currentFileNumber;
 
         /// <inheritdoc />
         public virtual async ValueTask DisposeAsync()
@@ -348,26 +348,26 @@ namespace AsyncDiskQueue
             try
             {
                 await ConfigSemaphore.WaitAsync().ConfigureAwait(false);
-                if (disposed)
+                if (_disposed)
                 {
                     return;
                 }
 
                 try
                 {
-                    logger.LogDebug("Disposing queue");
-                    disposed = true;
+                    _logger.LogDebug("Disposing queue");
+                    _disposed = true;
                     try
                     {
-                        await transactionLogSemaphore.WaitAsync().ConfigureAwait(false);
-                        if (trimTransactionLogOnDispose)
+                        await _transactionLogSemaphore.WaitAsync().ConfigureAwait(false);
+                        if (_trimTransactionLogOnDispose)
                         {
                             await FlushTrimmedTransactionLog().ConfigureAwait(false);
                         }
                     }
                     finally
                     {
-                        transactionLogSemaphore.Release();
+                        _transactionLogSemaphore.Release();
                     }
                 }
                 finally
@@ -381,16 +381,16 @@ namespace AsyncDiskQueue
                 ConfigSemaphore.Release();
             }
 
-            entriesSemaphore.Dispose();
-            transactionLogSemaphore.Dispose();
-            writerSemaphore.Dispose();
+            _entriesSemaphore.Dispose();
+            _transactionLogSemaphore.Dispose();
+            _writerSemaphore.Dispose();
             if (!_persistent)
             {
-                foreach (var file in Directory.GetFiles(path))
+                foreach (var file in Directory.GetFiles(_path))
                 {
                     File.Delete(file);
                 }
-                Directory.Delete(path, true);
+                Directory.Delete(_path, true);
             }
         }
 
@@ -401,34 +401,34 @@ namespace AsyncDiskQueue
         {
             try
             {
-                await writerSemaphore.WaitAsync().ConfigureAwait(false);
-                logger.LogDebug("Writer acquired");
-                if (stream.Position != currentFilePosition)
+                await _writerSemaphore.WaitAsync().ConfigureAwait(false);
+                _logger.LogDebug("Writer acquired");
+                if (stream.Position != _currentFilePosition)
                 {
-                    stream.Position = currentFilePosition;
+                    stream.Position = _currentFilePosition;
                 }
 
-                currentFilePosition = await action(stream).ConfigureAwait(false);
-                if (currentFilePosition < maxFileSize)
+                _currentFilePosition = await action(stream).ConfigureAwait(false);
+                if (_currentFilePosition < _maxFileSize)
                 {
                     return;
                 }
 
-                Interlocked.Increment(ref currentFileNumber);
+                Interlocked.Increment(ref _currentFileNumber);
                 // If we get to int.MaxValue then start over.
-                Interlocked.CompareExchange(ref currentFileNumber, 0, int.MaxValue);
-                logger.LogDebug("Log file number: " + currentFileNumber);
+                Interlocked.CompareExchange(ref _currentFileNumber, 0, int.MaxValue);
+                _logger.LogDebug("Log file number: " + _currentFileNumber);
                 var writer = CreateWriter();
                 // we assume same size messages, or near size messages
                 // that gives us a good heuristic for creating the size of
                 // the new file, so it wouldn't be fragmented
-                writer.SetLength(currentFilePosition);
-                currentFilePosition = 0;
+                writer.SetLength(_currentFilePosition);
+                _currentFilePosition = 0;
                 onReplaceStream(writer);
             }
             finally
             {
-                writerSemaphore.Release();
+                _writerSemaphore.Release();
             }
         }
 
@@ -439,12 +439,12 @@ namespace AsyncDiskQueue
                 return;
             }
 
-            logger.LogDebug("Committing transaction");
+            _logger.LogDebug("Committing transaction");
             var transactionBuffer = await GenerateTransactionBuffer(operations).ConfigureAwait(false);
 
             try
             {
-                await transactionLogSemaphore.WaitAsync().ConfigureAwait(false);
+                await _transactionLogSemaphore.WaitAsync().ConfigureAwait(false);
                 long txLogSize;
                 await using (var stream = await WaitForTransactionLog(transactionBuffer).ConfigureAwait(false))
                 {
@@ -460,20 +460,20 @@ namespace AsyncDiskQueue
                     Meta,
                     stream =>
                     {
-                        var bytes = BitConverter.GetBytes(currentFileNumber);
+                        var bytes = BitConverter.GetBytes(_currentFileNumber);
                         stream.Write(bytes, 0, bytes.Length);
-                        bytes = BitConverter.GetBytes(currentFilePosition);
+                        bytes = BitConverter.GetBytes(_currentFilePosition);
                         stream.Write(bytes, 0, bytes.Length);
                     });
 
-                if (paranoidFlushing)
+                if (_paranoidFlushing)
                 {
                     await FlushTrimmedTransactionLog().ConfigureAwait(false);
                 }
             }
             finally
             {
-                transactionLogSemaphore.Release();
+                _transactionLogSemaphore.Release();
             }
         }
 
@@ -492,13 +492,13 @@ namespace AsyncDiskQueue
                 }
                 catch (Exception)
                 {
-                    logger.LogError("Delay reading transaction log");
+                    _logger.LogError("Delay reading transaction log");
                     await Task.Delay(250).ConfigureAwait(false);
                 }
             }
 
             const string couldNotAcquireTransactionLogLock = "Could not acquire transaction log lock";
-            logger.LogError(couldNotAcquireTransactionLogLock);
+            _logger.LogError(couldNotAcquireTransactionLogLock);
             throw new TimeoutException(couldNotAcquireTransactionLogLock);
         }
 
@@ -506,9 +506,9 @@ namespace AsyncDiskQueue
         {
             try
             {
-                await entriesSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                logger.LogDebug("Dequeuing item");
-                var first = entries.First;
+                await _entriesSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                _logger.LogDebug("Dequeuing item");
+                var first = _entries.First;
                 if (first == null)
                 {
                     return null;
@@ -520,18 +520,18 @@ namespace AsyncDiskQueue
                 {
                     await ReadAhead().ConfigureAwait(false);
                 }
-                entries.RemoveFirst();
+                _entries.RemoveFirst();
                 // we need to create a copy so we will not hold the data
                 // in memory as well as the position
-                lock (checkedOutEntries)
+                lock (_checkedOutEntries)
                 {
-                    checkedOutEntries.Add(new Entry(entry.FileNumber, entry.Start, entry.Length));
+                    _checkedOutEntries.Add(new Entry(entry.FileNumber, entry.Start, entry.Length));
                 }
                 return entry;
             }
             finally
             {
-                entriesSemaphore.Release();
+                _entriesSemaphore.Release();
             }
         }
 
@@ -541,9 +541,9 @@ namespace AsyncDiskQueue
         private async Task ReadAhead()
         {
             long currentBufferSize = 0;
-            var firstEntry = entries.First.Value;
+            var firstEntry = _entries.First.Value;
             var lastEntry = firstEntry;
-            foreach (var entry in entries)
+            foreach (var entry in _entries)
             {
                 // we can't read ahead to another file or
                 // if we have unordered queue, or sparse items
@@ -554,7 +554,7 @@ namespace AsyncDiskQueue
                     break;
                 }
 
-                if (currentBufferSize + entry.Length > suggestedReadBuffer)
+                if (currentBufferSize + entry.Length > _suggestedReadBuffer)
                 {
                     break;
                 }
@@ -571,7 +571,7 @@ namespace AsyncDiskQueue
             var buffer = await ReadEntriesFromFile(firstEntry, currentBufferSize).ConfigureAwait(false);
 
             var index = 0;
-            foreach (var entry in entries)
+            foreach (var entry in _entries)
             {
                 entry.Data = new byte[entry.Length];
                 Buffer.BlockCopy(buffer, index, entry.Data, 0, entry.Length);
@@ -618,8 +618,8 @@ namespace AsyncDiskQueue
 
         IDiskQueueSession IDiskQueue.OpenSession()
         {
-            logger.LogInformation("Opening session");
-            return new DiskQueueSession(this, CreateWriter(), suggestedWriteBuffer, symmetricAlgorithm, loggerFactory.CreateLogger<IDiskQueueSession>());
+            _logger.LogInformation("Opening session");
+            return new DiskQueueSession(this, CreateWriter(), _suggestedWriteBuffer, _symmetricAlgorithm, _loggerFactory.CreateLogger<IDiskQueueSession>());
         }
 
         void IDiskQueueStore.Reinstate(IEnumerable<Operation> reinstatedOperations)
@@ -708,9 +708,9 @@ namespace AsyncDiskQueue
             await ms.WriteAsync(count).ConfigureAwait(false);
 
             Entry[] checkedOut;
-            lock (checkedOutEntries)
+            lock (_checkedOutEntries)
             {
-                checkedOut = checkedOutEntries.ToArray();
+                checkedOut = _checkedOutEntries.ToArray();
             }
             foreach (var entry in checkedOut)
             {
@@ -720,12 +720,12 @@ namespace AsyncDiskQueue
             Entry[] listedEntries;
             try
             {
-                await entriesSemaphore.WaitAsync().ConfigureAwait(false);
-                listedEntries = ToArray(entries);
+                await _entriesSemaphore.WaitAsync().ConfigureAwait(false);
+                listedEntries = ToArray(_entries);
             }
             finally
             {
-                entriesSemaphore.Release();
+                _entriesSemaphore.Release();
             }
 
             foreach (var entry in listedEntries)
@@ -797,26 +797,26 @@ namespace AsyncDiskQueue
                     case OperationType.Enqueue:
                         {
                             var entryToAdd = new Entry(operation);
-                            entries.AddLast(entryToAdd);
+                            _entries.AddLast(entryToAdd);
 
-                            var itemCountAddition = Extensions.GetValueOrDefault(countOfItemsPerFile, entryToAdd.FileNumber);
-                            countOfItemsPerFile[entryToAdd.FileNumber] = itemCountAddition + 1;
+                            var itemCountAddition = Extensions.GetValueOrDefault(_countOfItemsPerFile, entryToAdd.FileNumber);
+                            _countOfItemsPerFile[entryToAdd.FileNumber] = itemCountAddition + 1;
                         }
                         break;
 
                     case OperationType.Dequeue:
                         var entryToRemove = new Entry(operation);
-                        lock (checkedOutEntries) { checkedOutEntries.Remove(entryToRemove); }
-                        var itemCountRemoval = Extensions.GetValueOrDefault(countOfItemsPerFile, entryToRemove.FileNumber);
-                        countOfItemsPerFile[entryToRemove.FileNumber] = itemCountRemoval - 1;
+                        lock (_checkedOutEntries) { _checkedOutEntries.Remove(entryToRemove); }
+                        var itemCountRemoval = Extensions.GetValueOrDefault(_countOfItemsPerFile, entryToRemove.FileNumber);
+                        _countOfItemsPerFile[entryToRemove.FileNumber] = itemCountRemoval - 1;
                         break;
 
                     case OperationType.Reinstate:
                         var entryToReinstate = new Entry(operation);
-                        entries.AddFirst(entryToReinstate);
-                        lock (checkedOutEntries)
+                        _entries.AddFirst(entryToReinstate);
+                        lock (_checkedOutEntries)
                         {
-                            checkedOutEntries.Remove(entryToReinstate);
+                            _checkedOutEntries.Remove(entryToReinstate);
                         }
 
                         break;
@@ -824,14 +824,14 @@ namespace AsyncDiskQueue
             }
 
             var filesToRemove = new HashSet<int>(
-                from pair in countOfItemsPerFile
+                from pair in _countOfItemsPerFile
                 where pair.Value < 1
                 select pair.Key
                 );
 
             foreach (var i in filesToRemove)
             {
-                countOfItemsPerFile.Remove(i);
+                _countOfItemsPerFile.Remove(i);
             }
             return filesToRemove.ToArray();
         }
@@ -842,7 +842,7 @@ namespace AsyncDiskQueue
         /// </summary>
 	    private void ThrowIfStrict(string msg)
         {
-            if (throwOnConflict)
+            if (_throwOnConflict)
             {
                 throw new UnableToSetupException(msg);
             }
@@ -901,8 +901,8 @@ namespace AsyncDiskQueue
                 using var binaryReader = new BinaryReader(stream);
                 try
                 {
-                    currentFileNumber = binaryReader.ReadInt32();
-                    currentFilePosition = binaryReader.ReadInt64();
+                    _currentFileNumber = binaryReader.ReadInt32();
+                    _currentFilePosition = binaryReader.ReadInt64();
                 }
                 catch (EndOfStreamException)
                 {
@@ -912,7 +912,7 @@ namespace AsyncDiskQueue
 
         private async Task TrimTransactionLogIfNeeded(long txLogSize)
         {
-            if (txLogSize < suggestedMaxTransactionLogSize)
+            if (txLogSize < _suggestedMaxTransactionLogSize)
             {
                 return; // it is not big enough to care
             }
@@ -928,16 +928,16 @@ namespace AsyncDiskQueue
             int[] filesToRemove;
             try
             {
-                entriesSemaphore.Wait();
+                _entriesSemaphore.Wait();
                 filesToRemove = ApplyTransactionOperationsInMemory(operations);
             }
             finally
             {
-                entriesSemaphore.Release();
+                _entriesSemaphore.Release();
             }
             foreach (var fileNumber in filesToRemove)
             {
-                if (currentFileNumber == fileNumber)
+                if (_currentFileNumber == fileNumber)
                 {
                     continue;
                 }
@@ -967,7 +967,7 @@ namespace AsyncDiskQueue
 
         private FileStream CreateWriter()
         {
-            var dataFilePath = GetDataPath(currentFileNumber);
+            var dataFilePath = GetDataPath(_currentFileNumber);
             var stream = new FileStream(
                 dataFilePath,
                 FileMode.OpenOrCreate,
@@ -982,7 +982,7 @@ namespace AsyncDiskQueue
 
         private string GetDataPath(int index)
         {
-            return Path.Combine(path, "data." + index);
+            return Path.Combine(_path, "data." + index);
         }
 
         private long GetOptimalTransactionLogSize()

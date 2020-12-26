@@ -141,7 +141,7 @@ namespace DiskQueue.Tests
         [Test]
         public async Task After_reading_all_items_from_file_that_is_not_the_active_file_should_delete_file()
         {
-            await using (var queue = await DiskQueue.Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10).ConfigureAwait(false))
+            await using (var queue = await DiskQueue.Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10, persistent: true).ConfigureAwait(false))
             {
                 for (byte i = 0; i < 12; i++)
                 {

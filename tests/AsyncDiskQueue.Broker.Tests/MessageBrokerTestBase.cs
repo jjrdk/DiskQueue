@@ -7,7 +7,7 @@ namespace AsyncDiskQueue.Broker.Tests
     public abstract class MessageBrokerTestBase : IDisposable
     {
         protected const string Path = @"./queue_broker";
-        static readonly object _lock = new();
+        static readonly object Lock = new();
 
         protected MessageBrokerTestBase()
         {
@@ -23,7 +23,7 @@ namespace AsyncDiskQueue.Broker.Tests
 
         private static void ClearPath()
         {
-            lock (_lock)
+            lock (Lock)
             {
                 for (int i = 0; i < 10; i++)
                 {

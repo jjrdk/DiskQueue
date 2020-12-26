@@ -5,12 +5,12 @@ namespace DiskQueue.Reactive.Tests
 
     public class CrashSubscriber : IObserver<byte[]>
     {
-        private readonly ManualResetEventSlim waitHandle;
-        private int count = 0;
+        private readonly ManualResetEventSlim _waitHandle;
+        private int _count = 0;
 
         public CrashSubscriber(ManualResetEventSlim waitHandle)
         {
-            this.waitHandle = waitHandle;
+            _waitHandle = waitHandle;
         }
 
         public Exception LastError { get; private set; }
@@ -21,22 +21,22 @@ namespace DiskQueue.Reactive.Tests
         public void OnCompleted()
         {
             Completed = true;
-            waitHandle.Set();
+            _waitHandle.Set();
         }
 
         /// <inheritdoc />
         public void OnError(Exception error)
         {
             LastError = error;
-            waitHandle.Set();
+            _waitHandle.Set();
         }
 
         /// <inheritdoc />
         public void OnNext(byte[] value)
         {
-            if (Interlocked.Increment(ref count) % 3 == 0)
+            if (Interlocked.Increment(ref _count) % 3 == 0)
             {
-                waitHandle.Set();
+                _waitHandle.Set();
             }
             else
             {

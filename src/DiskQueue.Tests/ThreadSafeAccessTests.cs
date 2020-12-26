@@ -16,21 +16,21 @@ namespace DiskQueue.Tests
         [Test]
         public async Task Can_enqueue_and_dequeue_on_separate_threads()
         {
-            int t1s, t2s;
-            t1s = t2s = 0;
+            int t1S, t2S;
+            t1S = t2S = 0;
             const int target = 100;
             var rnd = new Random();
 
-            var _subject = await DiskQueue.Create("queue_a", Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+            var subject = await DiskQueue.Create("queue_a", Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
             var t1 = Task.Run(
                 async () =>
                 {
                     for (var i = 0; i < target; i++)
                     {
-                        using var session = _subject.OpenSession();
+                        using var session = subject.OpenSession();
                         Console.Write("(");
                         await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                        Interlocked.Increment(ref t1s);
+                        Interlocked.Increment(ref t1S);
                         Thread.Sleep(rnd.Next(0, 100));
                         await session.Flush().ConfigureAwait(false);
                         Console.Write(")");
@@ -41,10 +41,10 @@ namespace DiskQueue.Tests
                 {
                     for (var i = 0; i < target; i++)
                     {
-                        using var session = _subject.OpenSession();
+                        using var session = subject.OpenSession();
                         Console.Write("<");
                         await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
-                        Interlocked.Increment(ref t2s);
+                        Interlocked.Increment(ref t2S);
                         Thread.Sleep(rnd.Next(0, 100));
                         await session.Flush().ConfigureAwait(false);
                         Console.Write(">");
@@ -56,15 +56,15 @@ namespace DiskQueue.Tests
 
             await t1.ConfigureAwait(false);
             await t2.ConfigureAwait(false);
-            Assert.That(t1s, Is.EqualTo(target));
-            Assert.That(t2s, Is.EqualTo(target));
+            Assert.That(t1S, Is.EqualTo(target));
+            Assert.That(t2S, Is.EqualTo(target));
         }
 
         [Test]
         public async Task Can_sequence_queues_on_separate_threads()
         {
-            int t1s, t2s;
-            t1s = t2s = 0;
+            int t1S, t2S;
+            t1S = t2S = 0;
             const int target = 100;
 
             var t1 = Task.Run(
@@ -77,7 +77,7 @@ namespace DiskQueue.Tests
                         using var session = subject.OpenSession();
                         Console.Write("(");
                         await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                        Interlocked.Increment(ref t1s);
+                        Interlocked.Increment(ref t1S);
                         await session.Flush().ConfigureAwait(false);
                         Console.Write(")");
                     }
@@ -88,24 +88,23 @@ namespace DiskQueue.Tests
                     for (var i = 0; i < target; i++)
                     {
                         using var source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                        var subject = await DiskQueue
+                       await using var subject = await DiskQueue
                             .Create("queue_b", Substitute.For<ILoggerFactory>(), cancellationToken: source.Token)
                             .ConfigureAwait(false);
                         using var session = subject.OpenSession();
                         Console.Write("<");
                         await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
-                        Interlocked.Increment(ref t2s);
+                        Interlocked.Increment(ref t2S);
                         await session.Flush().ConfigureAwait(false);
                         Console.Write(">");
-                        await subject.DisposeAsync().ConfigureAwait(false);
                     }
                 });
 
             await t1.ConfigureAwait(false);
             await t2.ConfigureAwait(false);
 
-            Assert.That(t1s, Is.EqualTo(target));
-            Assert.That(t2s, Is.EqualTo(target));
+            Assert.That(t1S, Is.EqualTo(target));
+            Assert.That(t2S, Is.EqualTo(target));
         }
     }
 }

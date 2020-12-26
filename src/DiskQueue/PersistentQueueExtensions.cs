@@ -27,42 +27,42 @@ namespace AsyncDiskQueue
 
         private class TypedDiskQueueSession<T> : IDiskQueueSession<T>
         {
-            private readonly IDiskQueueSession rawSession;
-            private readonly Func<T, byte[]> serializer;
-            private readonly Func<byte[], T> deserializer;
+            private readonly IDiskQueueSession _rawSession;
+            private readonly Func<T, byte[]> _serializer;
+            private readonly Func<byte[], T> _deserializer;
 
             public TypedDiskQueueSession(IDiskQueueSession rawSession, Func<T, byte[]> serializer, Func<byte[], T> deserializer)
             {
-                this.rawSession = rawSession;
-                this.serializer = serializer;
-                this.deserializer = deserializer;
+                _rawSession = rawSession;
+                _serializer = serializer;
+                _deserializer = deserializer;
             }
 
             /// <inheritdoc />
             public void Dispose()
             {
-                rawSession.Dispose();
+                _rawSession.Dispose();
                 GC.SuppressFinalize(this);
             }
 
             /// <inheritdoc />
             public Task Enqueue(T data, CancellationToken cancellationToken = default)
             {
-                var bytes = serializer(data);
-                return bytes == null ? Task.CompletedTask : rawSession.Enqueue(bytes, cancellationToken);
+                var bytes = _serializer(data);
+                return bytes == null ? Task.CompletedTask : _rawSession.Enqueue(bytes, cancellationToken);
             }
 
             /// <inheritdoc />
             public async Task<T> Dequeue(CancellationToken cancellationToken = default)
             {
-                var bytes = await rawSession.Dequeue(cancellationToken).ConfigureAwait(false);
-                return bytes == null ? default : deserializer(bytes);
+                var bytes = await _rawSession.Dequeue(cancellationToken).ConfigureAwait(false);
+                return bytes == null ? default : _deserializer(bytes);
             }
 
             /// <inheritdoc />
             public Task Flush(CancellationToken cancellationToken = default)
             {
-                return rawSession.Flush(cancellationToken);
+                return _rawSession.Flush(cancellationToken);
             }
         }
     }

@@ -8,61 +8,61 @@
 
     public class PersistentBuffer : IObservable<byte[]>, IObserver<byte[]>, IAsyncDisposable
     {
-        private readonly IDiskQueue queue;
-        private readonly int retryCount;
-        private CancellationTokenSource tokenSource;
-        private readonly List<IObserver<byte[]>> subscribers = new List<IObserver<byte[]>>();
-        private Task work;
+        private readonly IDiskQueue _queue;
+        private readonly int _retryCount;
+        private CancellationTokenSource _tokenSource;
+        private readonly List<IObserver<byte[]>> _subscribers = new List<IObserver<byte[]>>();
+        private Task _work;
 
         public PersistentBuffer(IDiskQueue queue, int retryCount)
         {
-            this.queue = queue;
-            this.retryCount = retryCount;
+            _queue = queue;
+            _retryCount = retryCount;
         }
 
         public void Start()
         {
-            lock (queue)
+            lock (_queue)
             {
-                if (tokenSource != null)
+                if (_tokenSource != null)
                 {
                     return;
                 }
 
-                tokenSource = new CancellationTokenSource();
-                work = ProcessMessages();
+                _tokenSource = new CancellationTokenSource();
+                _work = ProcessMessages();
             }
         }
 
         public async Task Stop()
         {
-            if (tokenSource == null)
+            if (_tokenSource == null)
             {
                 return;
             }
 
-            tokenSource.Cancel();
-            await work.ConfigureAwait(false);
-            tokenSource = null;
+            _tokenSource.Cancel();
+            await _work.ConfigureAwait(false);
+            _tokenSource = null;
         }
 
         /// <inheritdoc />
         IDisposable IObservable<byte[]>.Subscribe(IObserver<byte[]> observer)
         {
-            return new Subscription<byte[]>(observer, subscribers);
+            return new Subscription<byte[]>(observer, _subscribers);
         }
 
         /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             await Stop().ConfigureAwait(false);
-            tokenSource?.Dispose();
+            _tokenSource?.Dispose();
         }
 
         /// <inheritdoc />
         void IObserver<byte[]>.OnCompleted()
         {
-            foreach (var subscriber in subscribers)
+            foreach (var subscriber in _subscribers)
             {
                 subscriber.OnCompleted();
             }
@@ -73,7 +73,7 @@
         /// <inheritdoc />
         void IObserver<byte[]>.OnError(Exception error)
         {
-            foreach (var subscriber in subscribers)
+            foreach (var subscriber in _subscribers)
             {
                 subscriber.OnError(error);
             }
@@ -85,7 +85,7 @@
             var task = Task.Run(
                 async () =>
                 {
-                    using var session = queue.OpenSession();
+                    using var session = _queue.OpenSession();
                     await session.Enqueue(value).ConfigureAwait(false);
                     await session.Flush().ConfigureAwait(false);
                 });
@@ -97,19 +97,19 @@
             try
             {
                 await Policy.Handle<SubscriberException>()
-                    .WaitAndRetryAsync(retryCount, i => TimeSpan.FromMilliseconds(i * 100))
+                    .WaitAndRetryAsync(_retryCount, i => TimeSpan.FromMilliseconds(i * 100))
                     .ExecuteAsync(
                         async () => { await ProcessQueueContent().ConfigureAwait(false); })
                     .ConfigureAwait(false);
 
-                foreach (var subscriber in subscribers)
+                foreach (var subscriber in _subscribers)
                 {
                     subscriber.OnCompleted();
                 }
             }
             catch (Exception e)
             {
-                foreach (var subscriber in subscribers)
+                foreach (var subscriber in _subscribers)
                 {
                     subscriber.OnError(e);
                 }
@@ -120,13 +120,13 @@
         {
             try
             {
-                using var session = queue.OpenSession();
-                while (!tokenSource.IsCancellationRequested)
+                using var session = _queue.OpenSession();
+                while (!_tokenSource.IsCancellationRequested)
                 {
                     var s = session;
                     var content = await Policy.HandleResult<byte[]>(b => b == null)
                         .WaitAndRetryForeverAsync(i => TimeSpan.FromMilliseconds(i * 100))
-                        .ExecuteAsync(async () => await s.Dequeue(tokenSource.Token).ConfigureAwait(false))
+                        .ExecuteAsync(async () => await s.Dequeue(_tokenSource.Token).ConfigureAwait(false))
                         .ConfigureAwait(false);
 
                     NotifySubscribers(content);
@@ -141,7 +141,7 @@
 
         private void NotifySubscribers(byte[] content)
         {
-            foreach (var subscriber in subscribers)
+            foreach (var subscriber in _subscribers)
             {
                 try
                 {
@@ -157,19 +157,19 @@
 
     public class Subscription<T> : IDisposable
     {
-        private readonly IObserver<T> observer;
-        private readonly ICollection<IObserver<T>> observers;
+        private readonly IObserver<T> _observer;
+        private readonly ICollection<IObserver<T>> _observers;
 
         public Subscription(IObserver<T> observer, ICollection<IObserver<T>> observers)
         {
-            this.observer = observer;
-            this.observers = observers;
+            _observer = observer;
+            _observers = observers;
             observers.Add(observer);
         }
 
         void IDisposable.Dispose()
         {
-            observers.Remove(observer);
+            _observers.Remove(_observer);
             GC.SuppressFinalize(this);
         }
     }

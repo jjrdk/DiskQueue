@@ -10,7 +10,7 @@ namespace AsyncDiskQueue.Implementation
 
 
     /// <summary>
-    /// <para>You should use <see cref="IDiskQueue.OpenSession"/> to get a session.</para>e.OpenSession"/> to get a session.</para>
+    /// <para>You should use <see cref="IDiskQueue.OpenSession"/> to get a session.</para>
     /// <example>using (var q = PersistentQueue.WaitFor("myQueue")) using (var session = q.OpenSession()) { ... }</example>
     /// </summary>
     internal sealed class DiskQueueSession : IDiskQueueSession
@@ -28,7 +28,8 @@ namespace AsyncDiskQueue.Implementation
         private int _bufferSize;
         private const int MinSizeThatMakeAsyncWritePractical = 64 * 1024;
 
-        /// <para>You should use <see cref="IDiskQueue.OpenSession"/> to get a session.</para>ssion.
+        /// <summary>
+        /// <para>You should use <see cref="IDiskQueue.OpenSession"/> to get a session.</para>
         /// <para>You should use <see cref="IDiskQueue.OpenSession"/> to get a session.</para>
         /// <example>using (var q = PersistentQueue.WaitFor("myQueue")) using (var session = q.OpenSession()) { ... }</example>
         /// </summary>

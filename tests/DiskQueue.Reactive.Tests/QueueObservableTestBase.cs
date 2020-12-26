@@ -6,11 +6,11 @@ namespace DiskQueue.Reactive.Tests
     public abstract class QueueObservableTestBase : IDisposable
     {
         protected const string Path = @"./queue_rx";
-        static readonly object _lock = new();
+        static readonly object Lock = new();
 
         public void Dispose()
         {
-            lock (_lock)
+            lock (Lock)
             {
                 for (int i = 0; i < 10; i++)
                 {
