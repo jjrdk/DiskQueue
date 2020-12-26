@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.28803.156
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiskQueue", "src\DiskQueue\DiskQueue.csproj", "{6E192B0C-4BDB-4AAD-9D0D-C2800645AF70}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiskQueue.Tests", "src\DiskQueue.Tests\DiskQueue.Tests.csproj", "{9AFF54EA-63E4-43B0-BF19-D81DB5FA66A5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiskQueue.Tests", "tests\DiskQueue.Tests\DiskQueue.Tests.csproj", "{9AFF54EA-63E4-43B0-BF19-D81DB5FA66A5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiskQueue.Reactive", "src\DiskQueue.Reactive\DiskQueue.Reactive.csproj", "{889C839C-5B16-47CD-97BA-D0C5D91D4644}"
 EndProject
