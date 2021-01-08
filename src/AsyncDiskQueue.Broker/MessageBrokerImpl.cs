@@ -5,63 +5,51 @@
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using System.Text;
-    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
-    using Newtonsoft.Json;
-
-    internal class SubscriberExchange<T> : ISubscription<T>
-    {
-        private readonly IDiskQueue _queue;
-        private readonly ISubscription<T> _subscription;
-
-        public SubscriberExchange(IDiskQueue queue, ISubscription<T> subscription)
-        {
-            _queue = queue;
-            _subscription = subscription;
-        }
-
-        /// <inheritdoc />
-        public ValueTask DisposeAsync()
-        {
-            return ValueTask.CompletedTask;
-        }
-
-        /// <inheritdoc />
-        public SubscriberInfo SubscriberInfo => _subscription.SubscriberInfo;
-
-        /// <inheritdoc />
-        public bool Persistent => _subscription.Persistent;
-
-        /// <inheritdoc />
-        public Func<T, Task> Handler => _subscription.Handler;
-    }
 
     public class MessageBrokerImpl : IMessageBroker
     {
-        private readonly JsonSerializerSettings _serializerSettings;
+        private const string BrokerId = "4F545B9DEE8F413A97136C1D4CAEDEF6";
+        private const string Subscriber = "subscriber";
         private readonly DirectoryInfo _directory;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly HashSet<Type> _topics = new();
-        private readonly Dictionary<Type, (CancellationTokenSource, Task)> _topicWorkers = new();
-        private readonly ConcurrentDictionary<string, Task<IDiskQueue>> _queues = new();
+        private readonly HashSet<string> _topics = new();
+        private readonly Dictionary<string, IAsyncDisposable> _topicWorkers = new();
+        private readonly ConcurrentDictionary<(string endpoint, string topic), Task<IDiskQueue>> _queues = new();
         private readonly List<ISubscription> _subscribers;
         private readonly ConcurrentDictionary<Type, Type[]> _typesMap = new();
 
-        public MessageBrokerImpl(DirectoryInfo directory, ILoggerFactory loggerFactory)
+        private MessageBrokerImpl(DirectoryInfo directory, ILoggerFactory loggerFactory)
         {
             _directory = directory;
             _loggerFactory = loggerFactory;
             _subscribers = new List<ISubscription>();
-            _serializerSettings = new JsonSerializerSettings
+        }
+
+        public static async Task<IMessageBroker> Create(DirectoryInfo directory, ILoggerFactory loggerFactory)
+        {
+            var broker = new MessageBrokerImpl(directory, loggerFactory);
+            var permanentSubscribers = Path.Combine(directory.FullName, Subscriber);
+            if (!Directory.Exists(permanentSubscribers))
             {
-                MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead,
-                TypeNameHandling = TypeNameHandling.Auto,
-                TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
-                DefaultValueHandling = DefaultValueHandling.Ignore,
-                MissingMemberHandling = MissingMemberHandling.Ignore
-            };
+                Directory.CreateDirectory(permanentSubscribers);
+            }
+            foreach (var path in Directory.GetDirectories(permanentSubscribers))
+            {
+                var endpoint = path.Replace(Path.GetDirectoryName(path), string.Empty).Trim('\\').Trim('/');
+                foreach (var hashPath in Directory.GetDirectories(path))
+                {
+                    var topic = hashPath.Replace(Path.GetDirectoryName(hashPath), string.Empty).Trim('\\').Trim('/');
+
+                    var queue = await broker._queues.GetOrAdd((endpoint, topic), broker.GetQueue).ConfigureAwait(false);
+
+                    var instance = new PermanentSubscriber(endpoint, topic, queue);
+                    broker._subscribers.Add(instance);
+                }
+            }
+
+            return broker;
         }
 
         public async Task Publish<T>(string source, T message)
@@ -72,19 +60,24 @@
                 return;
             }
 
-            var msg = new MessagePayload(source, message, DateTimeOffset.UtcNow);
+            var msg = new MessagePayload(
+                source,
+                message,
+                typeof(T).GetInheritanceChain().Select(t => t.AssemblyQualifiedName).ToArray(),
+                new Dictionary<string, object>(),
+                TimeSpan.Zero,
+                DateTimeOffset.UtcNow);
             // Put into topic queues
-            var tasks = _typesMap
-                .GetOrAdd(typeof(T), t => t.GetInterfaces().Concat(t.GetInheritanceChain()).Distinct().ToArray())
+            var tasks = _typesMap.GetOrAdd(typeof(T), TypeValueFactory)
+                .Select(t => t.Hash())
                 .Where(_topics.Contains)
-                .Select(GetTopicAddress)
                 .Distinct()
-                .Select(GetQueue)
+                .Select(s => _queues.GetOrAdd((BrokerId, s), GetQueue))
                 .Select(
                     async t =>
                     {
                         var queue = await t.ConfigureAwait(false);
-                        using var session = queue.OpenSession(Serialize, Deserialize);
+                        using var session = queue.OpenSession(Serializer.Serialize, Serializer.Deserialize);
                         await session.Enqueue(msg).ConfigureAwait(false);
                         await session.Flush().ConfigureAwait(false);
                     });
@@ -92,18 +85,46 @@
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
-        public IAsyncDisposable Subscribe<T>(Func<T, Task> subscription)
-            where T : class
+        private static Type[] TypeValueFactory(Type t)
         {
-            var current = _subscribers.OfType<ISubscription<T>>()
-                .FirstOrDefault(s => ReferenceEquals(s.Handler, subscription));
+            return t.GetInterfaces().Concat(t.GetInheritanceChain()).Distinct().ToArray();
+        }
+
+        public async Task<IAsyncDisposable> Subscribe(ISubscriptionRequest subscriptionRequest)
+        {
+            var tasks = subscriptionRequest.MessageReceivers.Select(
+                x => Subscribe(subscriptionRequest.SubscriberInfo.EndPoint, x));
+            var subscriptions = await Task.WhenAll(tasks).ConfigureAwait(false);
+            return subscriptions[0];
+        }
+
+        private async Task<IAsyncDisposable> Subscribe(string endPoint, IMessageReceiver receiver)
+        {
+            var current = _subscribers.FirstOrDefault(s => s.EndPoint == endPoint && s.Topic == receiver.Topic);
             if (current != null)
             {
+                if (current is ISubscriptionSource permanentSubscriber)
+                {
+                    return permanentSubscriber.Connect(receiver);
+                }
+
                 return current;
             }
 
-            EnsureTopicWorker<T>();
-            var item = new Subscription<T>(subscription, _subscribers, OnUnsubscribe<T>);
+            await EnsureTopicWorker(receiver.Topic).ConfigureAwait(false);
+            if (receiver.Persistent)
+            {
+                var queue = await _queues.GetOrAdd((endPoint, receiver.Topic), GetQueue).ConfigureAwait(false);
+                var subscription = new PermanentSubscriber(endPoint, receiver.Topic, queue);
+                _subscribers.Add(subscription);
+
+                return subscription.Connect(receiver);
+            }
+
+            var item = new SubscriptionWorker(
+               endPoint,
+                receiver,
+               OnUnsubscribe);
             _subscribers.Add(item);
 
             return item;
@@ -111,11 +132,10 @@
 
         public async ValueTask DisposeAsync()
         {
-            var subscriberTasks = _subscribers.Select(s => s.DisposeAsync());
-            await Task.WhenAll(subscriberTasks.Cast<Task>()).ConfigureAwait(false);
+            var subscriberTasks = _subscribers.Select(s => s.DisposeAsync().AsTask());
+            await Task.WhenAll(subscriberTasks).ConfigureAwait(false);
             _subscribers.Clear();
-            var workerTasks = _topicWorkers.Values.Select(
-                tuple => StopWorker(tuple.Item1, tuple.Item2));
+            var workerTasks = _topicWorkers.Values.Select(worker => worker.DisposeAsync().AsTask());
             await Task.WhenAll(workerTasks).ConfigureAwait(false);
             _topicWorkers.Clear();
 
@@ -129,86 +149,34 @@
             _queues.Clear();
         }
 
-        private static async Task StopWorker(CancellationTokenSource tokenSource, Task task)
+        private async Task<IDiskQueue> GetQueue((string endpoint, string topic) address)
         {
-            tokenSource.Cancel();
-            await task.ConfigureAwait(false);
-            tokenSource.Dispose();
-            task.Dispose();
+            await Task.Yield();
+            return await DiskQueue.Create(Path.Combine(_directory.FullName, address.endpoint, address.topic), _loggerFactory)
+                .ConfigureAwait(false);
         }
 
-        private byte[] Serialize(MessagePayload item)
+        private async Task OnUnsubscribe(ISubscription subscription)
         {
-            return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(item, _serializerSettings));
-        }
-
-        private MessagePayload Deserialize(byte[] bytes)
-        {
-            return JsonConvert.DeserializeObject<MessagePayload>(Encoding.UTF8.GetString(bytes), _serializerSettings);
-        }
-
-        private Task<IDiskQueue> GetQueue(string topicAddress)
-        {
-            return _queues.GetOrAdd(
-                topicAddress,
-                (s, l) => DiskQueue.Create(
-                    Path.Combine(_directory.FullName, "topics", s),
-                    l,
-                    paranoidFlushing: false),
-                _loggerFactory);
-        }
-
-        private async Task OnUnsubscribe<T>()
-        {
-            if (_subscribers.OfType<ISubscription<T>>().Any())
+            _subscribers.Remove(subscription);
+            var topic = subscription.Topic;
+            if (_subscribers.Any(x => x.Topic == topic))
             {
                 return;
             }
 
-            var topic = typeof(T);
             _topics.Remove(topic);
-            var (cancellationTokenSource, task) = _topicWorkers[topic];
-            await StopWorker(cancellationTokenSource, task).ConfigureAwait(false);
+            var worker = _topicWorkers[topic];
+            await worker.DisposeAsync().ConfigureAwait(false);
             _topicWorkers.Remove(topic);
         }
 
-        private void EnsureTopicWorker<T>()
-            where T : class
+        private async Task EnsureTopicWorker(string topic)
         {
-            var topic = typeof(T);
             _topics.Add(topic);
-            var tokenSource = new CancellationTokenSource();
-            var topicWorker = TopicWorker<T>(tokenSource.Token);
-            _topicWorkers.Add(topic, (tokenSource, topicWorker));
-        }
-
-        private static string GetTopicAddress(Type topic)
-        {
-            return $"urn_{topic.Namespace}_{topic.Name.Replace('`', '_')}";
-        }
-
-        private async Task TopicWorker<T>(CancellationToken cancellationToken)
-            where T : class
-        {
-            var queue = await _queues.GetOrAdd(GetTopicAddress(typeof(T)), GetQueue).ConfigureAwait(false);
-            using var diskQueueSession = queue.OpenSession(Serialize, Deserialize);
-            await foreach (var item in diskQueueSession
-                .ToAsyncEnumerable(cancellationToken: cancellationToken))
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                var payload = item.Payload as T;
-                if (payload == null)
-                {
-                    continue;
-                }
-
-                var tasks = _subscribers.OfType<ISubscription<T>>().Select(s => s.Handler(payload));
-                await Task.WhenAll(tasks).ConfigureAwait(false);
-            }
+            var queue = await _queues.GetOrAdd((BrokerId, topic), GetQueue).ConfigureAwait(false);
+            var topicWorker = TopicWorker.Create(queue, _subscribers.Where(s => s.Topic == topic));
+            _topicWorkers.Add(topic, topicWorker);
         }
     }
 }

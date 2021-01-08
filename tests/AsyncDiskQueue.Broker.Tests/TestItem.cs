@@ -4,7 +4,7 @@ namespace AsyncDiskQueue.Broker.Tests
     {
         string Value { get; }
     }
-    
+
     public class TestItem : ITestItem
     {
         public string Value { get; init; }

@@ -2,7 +2,8 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.Net.Sockets;
+    using System.Security.Cryptography;
+    using System.Text;
 
     public static class TypeExtensions
     {
@@ -19,6 +20,12 @@
 
                 type = type.BaseType;
             }
+        }
+
+        public static string Hash(this Type type)
+        {
+            var bytes = Encoding.UTF8.GetBytes(type.FullName);
+            return BitConverter.ToString(SHA256.HashData(bytes)).Replace("-", string.Empty);
         }
     }
 }

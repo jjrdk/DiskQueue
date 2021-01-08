@@ -64,8 +64,15 @@ namespace AsyncDiskQueue
                 var data = await session.Dequeue(cancellationToken).ConfigureAwait(false);
                 if (data == null)
                 {
-                    count = Math.Min(10, count + 1);
-                    await Task.Delay(count * 100, cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        count = Math.Min(10, count + 1);
+                        await Task.Delay(count * 100, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        yield break;
+                    }
                 }
                 else
                 {

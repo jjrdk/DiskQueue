@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using Xunit;
 
-[assembly:InternalsVisibleTo("DiskQueue.Tests")]
+[assembly: CollectionBehavior(CollectionBehavior.CollectionPerClass, DisableTestParallelization = true)]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]

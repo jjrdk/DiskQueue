@@ -8,8 +8,9 @@
     {
         private readonly int _hashCode;
 
-        public SubscriberInfo()
+        public SubscriberInfo(string endPoint)
         {
+            EndPoint = endPoint;
             MachineName = Environment.MachineName;
             OperatingSystem = Environment.OSVersion.ToString();
             ClrVersion = Environment.Version.ToString(3);
@@ -26,6 +27,8 @@
                 AssemblyName,
                 AssemblyVersion);
         }
+
+        public string EndPoint { get; }
 
         public string ProcessName { get; }
 
