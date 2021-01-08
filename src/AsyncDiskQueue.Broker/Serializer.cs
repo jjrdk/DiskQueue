@@ -1,5 +1,7 @@
 ﻿namespace AsyncDiskQueue.Broker
 {
+    using System.IO;
+    using System.IO.Compression;
     using System.Text;
     using Newtonsoft.Json;
 
@@ -21,13 +23,24 @@
 
         public static byte[] Serialize(MessagePayload item)
         {
-            return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(item, SerializerSettings));
+            var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(item, SerializerSettings));
+            using var output = new MemoryStream();
+            using var gzip = new GZipStream(output, CompressionMode.Compress, false);
+            gzip.Write(bytes);
+            gzip.Flush();
+            output.Flush();
+            return output.ToArray();
         }
 
         public static MessagePayload Deserialize(byte[] bytes)
         {
-            return JsonConvert.DeserializeObject<MessagePayload>(Encoding.UTF8.GetString(bytes), SerializerSettings);
-        }
+            using var gzip = new GZipStream(new MemoryStream(bytes), CompressionMode.Decompress, false);
+            using var output = new MemoryStream();
+            gzip.CopyTo(output);
+            output.Flush();
 
+            var json = Encoding.UTF8.GetString(output.ToArray());
+            return JsonConvert.DeserializeObject<MessagePayload>(json, SerializerSettings);
+        }
     }
 }

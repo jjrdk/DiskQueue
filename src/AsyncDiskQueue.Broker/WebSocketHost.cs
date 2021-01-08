@@ -69,7 +69,6 @@
             var subscription = await _broker.Subscribe(
                     new SubscriptionRequest(
                         endpoint,
-                        false,
                         new WebSocketSubscriber(topic, webSocket)))
                 .ConfigureAwait(false);
             byte[] buffer = null;
@@ -87,22 +86,16 @@
                             await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", cancellationToken).ConfigureAwait(false);
                             break;
                         case WebSocketMessageType.Text:
-                            {
-                                msg.AddRange(buffer[0..receiveResult.Count]);
-                                if (receiveResult.EndOfMessage)
-                                {
-                                    var json = Serializer.Deserialize(msg.ToArray());
-                                    await _broker.Publish(
-                                            listenerContext.Request.RemoteEndPoint.ToString(),
-                                            (T)json.Payload)
-                                        .ConfigureAwait(false);
-                                    msg.Clear();
-                                }
-
-                                break;
-                            }
+                            break;
                         case WebSocketMessageType.Binary:
-                            // await webSocket.SendAsync(new ArraySegment<byte>(buffer, 0, receiveResult.Count), WebSocketMessageType.Binary, receiveResult.EndOfMessage, CancellationToken.None).ConfigureAwait(false);
+                            msg.AddRange(buffer[..receiveResult.Count]);
+                            if (receiveResult.EndOfMessage)
+                            {
+                                var json = Serializer.Deserialize(msg.ToArray());
+                                await _broker.Publish(json).ConfigureAwait(false);
+                                msg.Clear();
+                            }
+
                             break;
                     }
                 }
@@ -110,7 +103,6 @@
             catch (OperationCanceledException) { }
             catch (Exception e)
             {
-                // Just log any exceptions to the console. Pretty much any exception that occurs when calling `SendAsync`/`ReceiveAsync`/`CloseAsync` is unrecoverable in that it will abort the connection and leave the `WebSocket` instance in an unusable state.
                 _logger.LogError(e, "Error receiving content");
             }
             finally

@@ -5,7 +5,9 @@
 
     public interface IMessageBroker : IAsyncDisposable
     {
-        Task Publish<T>(string source, T message) where T : class;
+        //Task Publish<T>(string source, T message) where T : class;
+
+        Task Publish(MessagePayload message);
 
         Task<IAsyncDisposable> Subscribe(ISubscriptionRequest subscriptionRequest);
     }

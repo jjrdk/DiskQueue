@@ -14,7 +14,8 @@ namespace AsyncDiskQueue.Broker.Tests
         [Fact]
         public async Task CanInitializePermanentSubscriptions()
         {
-            var broker = MessageBrokerImpl.Create(new DirectoryInfo(Path), new NullLoggerFactory());
+            _ = await MessageBroker.Create(new DirectoryInfo(Path), new NullLoggerFactory())
+                .ConfigureAwait(false);
         }
 
         [Fact]
@@ -28,17 +29,16 @@ namespace AsyncDiskQueue.Broker.Tests
                 return Task.CompletedTask;
             }
 
-            var message = new TestItem {Value = "test"};
-            await using var broker = await MessageBrokerImpl
+            var message = new TestItem { Value = "test" };
+            await using var broker = await MessageBroker
                 .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>())
                 .ConfigureAwait(false);
             await using var subscription = await broker.Subscribe(
                     new SubscriptionRequest(
                         Guid.NewGuid().ToString("N"),
-                        false,
                         new DelegateReceiver<TestItem>(Handle)))
                 .ConfigureAwait(false);
-            await broker.Publish("tester", message).ConfigureAwait(false);
+            await broker.Publish(Message.Create("tester", message)).ConfigureAwait(false);
 
             var handled = waitHandle.WaitOne(TimeSpan.FromSeconds(20));
 
@@ -56,18 +56,17 @@ namespace AsyncDiskQueue.Broker.Tests
                 return Task.CompletedTask;
             }
 
-            var message = new TestItem {Value = "test"};
-            await using var broker = await MessageBrokerImpl
+            var message = new TestItem { Value = "test" };
+            await using var broker = await MessageBroker
                 .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>())
                 .ConfigureAwait(false);
             await using var subscription = await broker.Subscribe(
                     new SubscriptionRequest(
                         Guid.NewGuid().ToString("N"),
-                        false,
                         new DelegateReceiver<ITestItem>(Handle)))
                 .ConfigureAwait(false);
 
-            await broker.Publish("tester", message).ConfigureAwait(false);
+            await broker.Publish(Message.Create("tester", message)).ConfigureAwait(false);
             var handled = waitHandle.WaitOne(TimeSpan.FromSeconds(20));
 
             Assert.True(handled);
@@ -84,18 +83,17 @@ namespace AsyncDiskQueue.Broker.Tests
                 return Task.CompletedTask;
             }
 
-            var message = new TestItem {Value = "test"};
-            await using var broker = await MessageBrokerImpl
+            var message = new TestItem { Value = "test" };
+            await using var broker = await MessageBroker
                 .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>())
                 .ConfigureAwait(false);
             await using var subscription = await broker.Subscribe(
                     new SubscriptionRequest(
                         Guid.NewGuid().ToString("N"),
-                        false,
                         new DelegateReceiver<TestItem>(Handle)))
                 .ConfigureAwait(false);
 
-            await broker.Publish<ITestItem>("tester", message).ConfigureAwait(false);
+            await broker.Publish(Message.Create<ITestItem>("tester", message)).ConfigureAwait(false);
 
             var handled = waitHandle.WaitOne(TimeSpan.FromSeconds(3));
 
@@ -113,20 +111,19 @@ namespace AsyncDiskQueue.Broker.Tests
                 return Task.CompletedTask;
             }
 
-            var message = new TestItem {Value = "test"};
-            await using var broker = await MessageBrokerImpl
+            var message = new TestItem { Value = "test" };
+            await using var broker = await MessageBroker
                 .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>())
                 .ConfigureAwait(false);
             await using (await broker.Subscribe(
                     new SubscriptionRequest(
                         Guid.NewGuid().ToString("N"),
-                        false,
                         new DelegateReceiver<TestItem>(Handle)))
                 .ConfigureAwait(false))
             {
             }
 
-            await broker.Publish("tester", message).ConfigureAwait(false);
+            await broker.Publish(Message.Create("tester", message)).ConfigureAwait(false);
 
             var handled = waitHandle.WaitOne(TimeSpan.FromSeconds(3));
 

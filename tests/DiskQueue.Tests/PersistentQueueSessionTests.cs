@@ -7,7 +7,6 @@ using System.IO;
 
 namespace DiskQueue.Tests
 {
-    using System.Threading;
     using System.Threading.Tasks;
     using AsyncDiskQueue;
     using AsyncDiskQueue.Implementation;

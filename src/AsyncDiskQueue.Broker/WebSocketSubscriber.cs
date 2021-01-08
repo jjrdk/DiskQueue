@@ -23,7 +23,7 @@
         /// <inheritdoc />
         public Task OnNext(byte[] msg, CancellationToken cancellationToken)
         {
-            return _webSocket.SendAsync(msg, WebSocketMessageType.Text, true, cancellationToken);
+            return _webSocket.SendAsync(msg, WebSocketMessageType.Binary, true, cancellationToken);
         }
     }
 }

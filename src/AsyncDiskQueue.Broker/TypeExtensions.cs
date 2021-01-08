@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Security.Cryptography;
     using System.Text;
 
@@ -20,6 +21,11 @@
 
                 type = type.BaseType;
             }
+        }
+
+        public static IEnumerable<string> GetInheritanceNames(this Type type)
+        {
+            return type.GetInheritanceChain().Select(t => t.FullName);
         }
 
         public static string Hash(this Type type)
