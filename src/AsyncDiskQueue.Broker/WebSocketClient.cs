@@ -13,14 +13,16 @@
     {
         private readonly Uri _host;
         private readonly ILogger<WebSocketClient> _logger;
+        private readonly int _bufferSize;
         private readonly CancellationTokenSource _tokenSource = new();
         private readonly Dictionary<string, ClientWebSocket> _webSockets;
         private readonly Task[] _listeners;
 
-        public WebSocketClient(Uri host, ISubscriptionRequest subscriptionRequest, ILogger<WebSocketClient> logger)
+        public WebSocketClient(Uri host, ISubscriptionRequest subscriptionRequest, ILogger<WebSocketClient> logger, int bufferSize = 4 * 1024)
         {
             _host = host;
             _logger = logger;
+            _bufferSize = bufferSize;
             var tuples = subscriptionRequest.MessageReceivers.Select(
                 x =>
                 {
@@ -53,12 +55,17 @@
                                   .ConfigureAwait(false);
                           }
 
-                          await socket.SendAsync(
-                                     Serializer.Serialize(message with { Topics = new[] { t } }),
-                                     WebSocketMessageType.Binary,
-                                     true,
-                                     cancellationToken)
-                                 .ConfigureAwait(false);
+                          var buffer = Serializer.Serialize(message with { Topics = new[] { t } });
+
+                          for (var i = 0; i < buffer.Length; i += _bufferSize)
+                          {
+                              var count = Math.Min(buffer.Length - i, _bufferSize);
+                              var segment = new ArraySegment<byte>(buffer, i, count);
+
+                              await socket.SendAsync(segment, WebSocketMessageType.Binary, i + count == buffer.Length, cancellationToken)
+                                  .ConfigureAwait(false);
+                          }
+
                           if (!existing)
                           {
                               await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, cancellationToken)

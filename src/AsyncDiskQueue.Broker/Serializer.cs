@@ -14,7 +14,7 @@
             SerializerSettings = new JsonSerializerSettings
             {
                 MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead,
-                TypeNameHandling = TypeNameHandling.All,
+                TypeNameHandling = TypeNameHandling.Objects,
                 TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
                 DefaultValueHandling = DefaultValueHandling.Ignore,
                 MissingMemberHandling = MissingMemberHandling.Ignore
@@ -25,7 +25,7 @@
         {
             var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(item, SerializerSettings));
             using var output = new MemoryStream();
-            using var gzip = new GZipStream(output, CompressionMode.Compress, false);
+            using var gzip = new GZipStream(output, CompressionLevel.Optimal, false);
             gzip.Write(bytes);
             gzip.Flush();
             output.Flush();

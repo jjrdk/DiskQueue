@@ -133,8 +133,7 @@
 
         private async Task<IDiskQueue> GetQueue((string endpoint, string topic) address)
         {
-            await Task.Yield();
-            return await DiskQueue.Create(Path.Combine(_directory.FullName, address.endpoint, address.topic), _loggerFactory)
+            return await DiskQueue.Create(Path.Combine(_directory.FullName, address.endpoint.Hash(), address.topic), _loggerFactory)
                 .ConfigureAwait(false);
         }
 

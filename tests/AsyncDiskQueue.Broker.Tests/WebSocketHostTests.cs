@@ -26,11 +26,12 @@ namespace AsyncDiskQueue.Broker.Tests
             await using var client = new WebSocketClient(
                 new Uri("ws://localhost:7000"),
                 new SubscriptionRequest("test"),
-                new NullLogger<WebSocketClient>());
+                new NullLogger<WebSocketClient>(),
+                50);
             var payload = new MessagePayload(
                 "here",
                 new TestItem { Value = "test" },
-                typeof(TestItem).GetInheritanceChain().Select(x => x.AssemblyQualifiedName).ToArray(),
+                typeof(TestItem).GetInheritanceNames().ToArray(),
                 new Dictionary<string, object>(),
                 TimeSpan.Zero,
                 DateTimeOffset.UtcNow,

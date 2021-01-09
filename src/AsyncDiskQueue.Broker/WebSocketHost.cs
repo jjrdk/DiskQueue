@@ -13,15 +13,17 @@
     {
         private readonly ILogger<WebSocketHost<T>> _logger;
         private readonly IMessageBroker _broker;
+        private readonly int _bufferSize;
         private readonly HttpListener _listener = new();
         private readonly CancellationTokenSource _tokenSource = new();
         private readonly Task _worker;
 
-        public WebSocketHost(ILogger<WebSocketHost<T>> logger, IMessageBroker broker)
+        public WebSocketHost(ILogger<WebSocketHost<T>> logger, IMessageBroker broker, int bufferSize = 1024 * 64)
         {
             _listener.Prefixes.Add("http://localhost:7000/");
             _logger = logger;
             _broker = broker;
+            _bufferSize = bufferSize;
             _listener.Start();
             _worker = DoWork();
         }
@@ -74,7 +76,7 @@
             byte[] buffer = null;
             try
             {
-                buffer = ArrayPool<byte>.Shared.Rent(1024 * 64);
+                buffer = ArrayPool<byte>.Shared.Rent(_bufferSize);
                 var msg = new List<byte>();
                 while (webSocket.State == WebSocketState.Open)
                 {

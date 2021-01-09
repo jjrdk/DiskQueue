@@ -30,8 +30,14 @@
 
         public static string Hash(this Type type)
         {
-            var bytes = Encoding.UTF8.GetBytes(type.FullName);
-            return BitConverter.ToString(SHA256.HashData(bytes)).Replace("-", string.Empty);
+            return type.FullName.Hash();
+        }
+
+        public static string Hash(this string input)
+        {
+            var bytes = Encoding.UTF8.GetBytes(input);
+            var hashData = SHA256.HashData(bytes);
+            return BitConverter.ToString(hashData).Replace("-", string.Empty);
         }
     }
 }
