@@ -29,7 +29,7 @@
             _subscribers = new List<ISubscription>();
         }
 
-        public static async Task<IMessageBroker> Create(DirectoryInfo directory, ILoggerFactory loggerFactory, Func<MessagePayload, byte[]> serializer, Func<byte[], MessagePayload> deserializer)
+        public static async Task<MessageBroker> Create(DirectoryInfo directory, ILoggerFactory loggerFactory, Func<MessagePayload, byte[]> serializer, Func<byte[], MessagePayload> deserializer)
         {
             var broker = new MessageBroker(directory, loggerFactory, serializer, deserializer);
             if (!Directory.Exists(directory.FullName))
@@ -38,10 +38,10 @@
             }
             foreach (var path in Directory.GetDirectories(directory.FullName))
             {
-                var endpoint = path.Replace(Path.GetDirectoryName(path)!, string.Empty).Trim('\\').Trim('/');
+                var endpoint = path.Replace(Path.GetDirectoryName(path)!, string.Empty).Trim(Path.DirectorySeparatorChar);
                 foreach (var hashPath in Directory.GetDirectories(path))
                 {
-                    var topic = hashPath.Replace(Path.GetDirectoryName(hashPath)!, string.Empty).Trim('\\').Trim('/');
+                    var topic = hashPath.Replace(Path.GetDirectoryName(hashPath)!, string.Empty).Trim(Path.DirectorySeparatorChar);
 
                     var queue = await broker._queues.GetOrAdd((endpoint, topic), broker.GetQueue).ConfigureAwait(false);
 
@@ -53,28 +53,27 @@
             return broker;
         }
 
-        public async Task Publish(MessagePayload message)
+        async Task IMessageBroker.Publish(MessagePayload message)
         {
             // Put into topic queues
-            async Task Enqueue((string s, Task<IDiskQueue>) tuple)
+            async Task Enqueue(Task<IDiskQueue> task)
             {
-                var (topic, task) = tuple;
                 var queue = await task.ConfigureAwait(false);
                 using var session = queue.OpenSession(_serializer, _deserializer);
-                await session.Enqueue(message with { Topics = new[] { topic } }).ConfigureAwait(false);
+                await session.Enqueue(message).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }
 
-            var tasks = message.Topics
-                .Distinct()
+            var tasks = message.Topics.Distinct()
+                .Select(t => t.Hash())
                 .Where(_topics.Contains)
-                .Select(s => (s, _queues.GetOrAdd((BrokerId, s), GetQueue)))
+                .Select(s => _queues.GetOrAdd((BrokerId, s), GetQueue))
                 .Select(Enqueue);
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
-        public async Task<IAsyncDisposable> Subscribe(ISubscriptionRequest subscriptionRequest)
+        async Task<IAsyncDisposable> IMessageBroker.Subscribe(ISubscriptionRequest subscriptionRequest)
         {
             var endPoint = subscriptionRequest.SubscriberInfo.EndPoint;
             if (string.IsNullOrWhiteSpace(endPoint) || endPoint == BrokerId)
@@ -107,10 +106,7 @@
                 return subscription.Connect(receiver);
             }
 
-            var item = new SubscriptionWorker(
-               endPoint,
-                receiver,
-               OnUnsubscribe);
+            var item = new SubscriptionWorker(endPoint, receiver, OnUnsubscribe);
             _subscribers.Add(item);
 
             return item;
@@ -158,6 +154,10 @@
 
         private async Task EnsureTopicWorker(string topic)
         {
+            if (_topicWorkers.ContainsKey(topic))
+            {
+                return;
+            }
             _topics.Add(topic);
             var queue = await _queues.GetOrAdd((BrokerId, topic), GetQueue).ConfigureAwait(false);
             var topicWorker = TopicWorker.Create(queue, _subscribers.Where(s => s.Topic == topic));

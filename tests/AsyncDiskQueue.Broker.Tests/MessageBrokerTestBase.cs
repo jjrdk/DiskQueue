@@ -8,7 +8,7 @@ namespace AsyncDiskQueue.Broker.Tests
     public abstract class MessageBrokerTestBase : IDisposable
     {
         protected const string Path = @"./queue_broker";
-        static readonly object Lock = new();
+        private static readonly object Lock = new();
 
         protected MessageBrokerTestBase()
         {
@@ -26,43 +26,41 @@ namespace AsyncDiskQueue.Broker.Tests
         {
             lock (Lock)
             {
-                for (var i = 0; i < 3; i++)
+                try
                 {
-                    try
+                    if (!Directory.Exists(Path))
                     {
-                        if (Directory.Exists(Path))
-                        {
-                            var files = Directory.GetFiles(Path, "*", SearchOption.AllDirectories);
-                            Array.Sort(files, (s1, s2) => s2.Length.CompareTo(s1.Length)); // sort by length descending
-                            foreach (var file in files)
-                            {
-                                try
-                                {
-                                    File.Delete(file);
-                                }
-                                catch
-                                {
-                                }
-                            }
+                        return;
+                    }
 
-                            try
-                            {
-                                Directory.Delete(Path, true);
-                                break;
-                            }
-                            catch
-                            {
-                                Thread.Sleep(100);
-                            }
+                    var files = Directory.GetFiles(Path, "*", SearchOption.AllDirectories);
+                    Array.Sort(files, (s1, s2) => s2.Length.CompareTo(s1.Length)); // sort by length descending
+                    foreach (var file in files)
+                    {
+                        try
+                        {
+                            File.Delete(file);
+                        }
+                        catch
+                        {
                         }
                     }
-                    catch (AggregateException)
+
+                    try
                     {
+                        Directory.Delete(Path, true);
                     }
-                    catch (UnauthorizedAccessException)
+                    catch
                     {
-                        Console.WriteLine("Not allowed to delete queue directory. May fail later");
+                        Thread.Sleep(100);
                     }
+                }
+                catch (AggregateException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    Console.WriteLine("Not allowed to delete queue directory. May fail later");
                 }
             }
         }

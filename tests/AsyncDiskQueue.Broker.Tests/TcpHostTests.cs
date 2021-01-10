@@ -5,6 +5,7 @@ namespace AsyncDiskQueue.Broker.Tests
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
+    using System.Net;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
@@ -13,8 +14,41 @@ namespace AsyncDiskQueue.Broker.Tests
     using Serializers;
     using Xunit;
 
-    public class WebSocketHostTests : MessageBrokerTestBase
+    public class TcpHostTests : MessageBrokerTestBase
     {
+        [Fact]
+        public async void WhenReceivingMessageFromTcpSocketThenSendsToBroker()
+        {
+            var waitHandle = new ManualResetEventSlim(false);
+            var broker = Substitute.For<IMessageBroker>();
+            broker.When(b => b.Publish(Arg.Any<MessagePayload>())).Do(c => waitHandle.Set());
+            await using var connector = new TcpHost(
+                new IPEndPoint(IPAddress.IPv6Loopback, 7001),
+                Substitute.For<ILogger<TcpHost>>(),
+                broker,
+                Serializers.Serializer.Deserialize);
+            await using var client = new TcpNetworkClient(
+                new IPEndPoint(IPAddress.IPv6Loopback, 7001),
+                new SubscriptionRequest("test", new DelegateReceiver<TestItem>((_, __) => Task.CompletedTask)),
+                new NullLogger<TcpNetworkClient>(),
+                Serializers.Serializer.Serialize);
+            //await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+            var payload = new MessagePayload(
+                "here",
+                new TestItem {Value = "test"},
+                typeof(TestItem).GetInheritanceNames().ToArray(),
+                new Dictionary<string, object>(),
+                TimeSpan.Zero,
+                DateTimeOffset.UtcNow,
+                Guid.NewGuid().ToString("N"));
+
+            await client.Send(payload, CancellationToken.None).ConfigureAwait(false);
+
+            var success = waitHandle.Wait(TimeSpan.FromSeconds(5));
+
+            Assert.True(success);
+        }
+
         [Fact]
         public async void WhenReceivingMessageFromTcpSocketThenSendsToOtherClients()
         {
@@ -26,26 +60,27 @@ namespace AsyncDiskQueue.Broker.Tests
                     Serializer.Deserialize)
                 .ConfigureAwait(false);
 
-            await using var connector = new WebSocketHost(
-                Substitute.For<ILogger<WebSocketHost>>(),
+            await using var connector = new TcpHost(
+                new IPEndPoint(IPAddress.IPv6Loopback, 7001),
+                Substitute.For<ILogger<TcpHost>>(),
                 broker,
                 Serializer.Deserialize);
-            await using var subscriber = new WebSocketClient(
-                new Uri("ws://localhost:7000"),
+            await using var subscriber = new TcpNetworkClient(
+                new IPEndPoint(IPAddress.IPv6Loopback, 7001),
                 new SubscriptionRequest(
                     "subscriber",
                     new DelegateReceiver<TestItem>(
-                        (_, _) =>
+                        (_, __) =>
                         {
                             waitHandle.Set();
                             return Task.CompletedTask;
                         })),
-                new NullLogger<WebSocketClient>(),
+                new NullLogger<TcpNetworkClient>(),
                 Serializer.Serialize);
-            await using var publisher = new WebSocketClient(
-                new Uri("ws://localhost:7000"),
+            await using var publisher = new TcpNetworkClient(
+                new IPEndPoint(IPAddress.IPv6Loopback, 7001),
                 new SubscriptionRequest("test"),
-                new NullLogger<WebSocketClient>(),
+                new NullLogger<TcpNetworkClient>(),
                 Serializer.Serialize);
 
             await Task.Delay(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
@@ -67,39 +102,7 @@ namespace AsyncDiskQueue.Broker.Tests
         }
 
         [Fact]
-        public async void WhenReceivingMessageFromWebSocketThenSendsToBroker()
-        {
-            var waitHandle = new ManualResetEventSlim(false);
-            var broker = Substitute.For<IMessageBroker>();
-            broker.When(b => b.Publish(Arg.Any<MessagePayload>())).Do(_ => waitHandle.Set());
-            await using var connector = new WebSocketHost(
-                Substitute.For<ILogger<WebSocketHost>>(),
-                broker,
-                Serializer.Deserialize);
-            await using var client = new WebSocketClient(
-                new Uri("ws://localhost:7000"),
-                new SubscriptionRequest("test"),
-                new NullLogger<WebSocketClient>(),
-                Serializer.Serialize,
-                50);
-            var payload = new MessagePayload(
-                "here",
-                new TestItem {Value = "test"},
-                typeof(TestItem).GetInheritanceNames().ToArray(),
-                new Dictionary<string, object>(),
-                TimeSpan.Zero,
-                DateTimeOffset.UtcNow,
-                Guid.NewGuid().ToString("N"));
-
-            await client.Send(payload, CancellationToken.None).ConfigureAwait(false);
-
-            var success = waitHandle.Wait(TimeSpan.FromSeconds(30));
-
-            Assert.True(success);
-        }
-
-        [Fact]
-        public async void WhenReceivingMessageFromBrokerThenSendsToWebSocket()
+        public async void WhenReceivingMessageFromBrokerThenSendsToTcpSocket()
         {
             var waitHandle = new ManualResetEventSlim(false);
             IMessageBroker broker = await MessageBroker.Create(
@@ -108,21 +111,22 @@ namespace AsyncDiskQueue.Broker.Tests
                     Serializer.Serialize,
                     Serializer.Deserialize)
                 .ConfigureAwait(false);
-            await using var connector = new WebSocketHost(
-                Substitute.For<ILogger<WebSocketHost>>(),
+            await using var connector = new TcpHost(
+                new IPEndPoint(IPAddress.IPv6Loopback, 7001),
+                Substitute.For<ILogger<TcpHost>>(),
                 broker,
                 Serializer.Deserialize);
-            await using var client = new WebSocketClient(
-                new Uri("ws://localhost:7000"),
+            await using var client = new TcpNetworkClient(
+                new IPEndPoint(IPAddress.IPv6Loopback, 7001),
                 new SubscriptionRequest(
                     "test",
                     new DelegateReceiver<TestItem>(
-                        (_, _) =>
+                        (t, c) =>
                         {
                             waitHandle.Set();
                             return Task.CompletedTask;
                         })),
-                new NullLogger<WebSocketClient>(),
+                new NullLogger<TcpNetworkClient>(),
                 Serializer.Serialize);
             await Task.Delay(250).ConfigureAwait(false);
 

@@ -31,7 +31,7 @@ namespace AsyncDiskQueue.Broker.Tests
             }
 
             var message = new TestItem { Value = "test" };
-            await using var broker = await MessageBroker
+            await using IMessageBroker broker = await MessageBroker
                 .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>(), Serializer.Serialize, Serializer.Deserialize)
                 .ConfigureAwait(false);
             await using var subscription = await broker.Subscribe(
@@ -58,7 +58,7 @@ namespace AsyncDiskQueue.Broker.Tests
             }
 
             var message = new TestItem { Value = "test" };
-            await using var broker = await MessageBroker
+            await using IMessageBroker broker = await MessageBroker
                 .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>(), Serializer.Serialize, Serializer.Deserialize)
                 .ConfigureAwait(false);
             await using var subscription = await broker.Subscribe(
@@ -85,7 +85,7 @@ namespace AsyncDiskQueue.Broker.Tests
             }
 
             var message = new TestItem { Value = "test" };
-            await using var broker = await MessageBroker
+            await using IMessageBroker broker = await MessageBroker
                 .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>(), Serializer.Serialize, Serializer.Deserialize)
                 .ConfigureAwait(false);
             await using var subscription = await broker.Subscribe(
@@ -113,7 +113,7 @@ namespace AsyncDiskQueue.Broker.Tests
             }
 
             var message = new TestItem { Value = "test" };
-            await using var broker = await MessageBroker
+            await using IMessageBroker broker = await MessageBroker
                 .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>(), Serializer.Serialize, Serializer.Deserialize)
                 .ConfigureAwait(false);
             await using (await broker.Subscribe(

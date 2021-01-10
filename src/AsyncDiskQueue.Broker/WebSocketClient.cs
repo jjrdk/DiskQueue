@@ -63,7 +63,7 @@
                             .ConfigureAwait(false);
                     }
 
-                    var buffer = _serializer(message with {Topics = new[] {t}});
+                    var buffer = _serializer(message with { Topics = new[] { t } });
 
                     for (var i = 0; i < buffer.Length; i += _bufferSize)
                     {

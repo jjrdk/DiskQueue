@@ -16,11 +16,11 @@
 
     public static class Message
     {
-        private static readonly ConcurrentDictionary<Type, Type[]> TypesMap = new();
+        private static readonly ConcurrentDictionary<Type, string[]> TypesMap = new();
 
         public static MessagePayload Create<T>(string source, T payload, string correlationId = null)
         {
-            var topics = TypesMap.GetOrAdd(typeof(T), TypeValueFactory).Select(t => t.Hash());
+            var topics = TypesMap.GetOrAdd(typeof(T), TypeValueFactory);
             return new MessagePayload(
                 source,
                 payload,
@@ -31,9 +31,9 @@
                 correlationId);
         }
 
-        private static Type[] TypeValueFactory(Type t)
+        private static string[] TypeValueFactory(Type t)
         {
-            return t.GetInterfaces().Concat(t.GetInheritanceChain()).Distinct().ToArray();
+            return t.GetInterfaces().Concat(t.GetInheritanceChain()).Select(x=>x.FullName).Distinct().ToArray();
         }
 
     }
