@@ -7,6 +7,7 @@ namespace AsyncDiskQueue.Broker.Tests
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Logging.Abstractions;
     using NSubstitute;
+    using Serializers;
     using Xunit;
 
     public class MessageBrokerTests : MessageBrokerTestBase
@@ -14,7 +15,7 @@ namespace AsyncDiskQueue.Broker.Tests
         [Fact]
         public async Task CanInitializePermanentSubscriptions()
         {
-            _ = await MessageBroker.Create(new DirectoryInfo(Path), new NullLoggerFactory())
+            _ = await MessageBroker.Create(new DirectoryInfo(Path), new NullLoggerFactory(), Serializer.Serialize, Serializer.Deserialize)
                 .ConfigureAwait(false);
         }
 
@@ -31,7 +32,7 @@ namespace AsyncDiskQueue.Broker.Tests
 
             var message = new TestItem { Value = "test" };
             await using var broker = await MessageBroker
-                .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>())
+                .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>(), Serializer.Serialize, Serializer.Deserialize)
                 .ConfigureAwait(false);
             await using var subscription = await broker.Subscribe(
                     new SubscriptionRequest(
@@ -58,7 +59,7 @@ namespace AsyncDiskQueue.Broker.Tests
 
             var message = new TestItem { Value = "test" };
             await using var broker = await MessageBroker
-                .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>())
+                .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>(), Serializer.Serialize, Serializer.Deserialize)
                 .ConfigureAwait(false);
             await using var subscription = await broker.Subscribe(
                     new SubscriptionRequest(
@@ -85,7 +86,7 @@ namespace AsyncDiskQueue.Broker.Tests
 
             var message = new TestItem { Value = "test" };
             await using var broker = await MessageBroker
-                .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>())
+                .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>(), Serializer.Serialize, Serializer.Deserialize)
                 .ConfigureAwait(false);
             await using var subscription = await broker.Subscribe(
                     new SubscriptionRequest(
@@ -113,7 +114,7 @@ namespace AsyncDiskQueue.Broker.Tests
 
             var message = new TestItem { Value = "test" };
             await using var broker = await MessageBroker
-                .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>())
+                .Create(new DirectoryInfo(Path), Substitute.For<ILoggerFactory>(), Serializer.Serialize, Serializer.Deserialize)
                 .ConfigureAwait(false);
             await using (await broker.Subscribe(
                     new SubscriptionRequest(

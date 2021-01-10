@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DiskQueue.Reactive\DiskQueue.Reactive.csproj" />
+    <ProjectReference Include="..\..\src\DiskQueue.Reactive\AsyncDiskQueue.Reactive.csproj" />
   </ItemGroup>
 
 </Project>

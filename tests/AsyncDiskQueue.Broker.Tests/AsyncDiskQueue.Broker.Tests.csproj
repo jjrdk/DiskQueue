@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\AsyncDiskQueue.Broker\AsyncDiskQueue.Broker.csproj" />
+    <ProjectReference Include="..\..\src\AsyncDiskQueue.Broker.Serializers\AsyncDiskQueue.Broker.Serializers.Newtonsoft.csproj" />
   </ItemGroup>
 
 </Project>

@@ -20,13 +20,15 @@ namespace AsyncDiskQueue.Broker.Tests
             var waitHandle = new ManualResetEventSlim(false);
             var broker = Substitute.For<IMessageBroker>();
             broker.When(b => b.Publish(Arg.Any<MessagePayload>())).Do(c => waitHandle.Set());
-            await using var connector = new WebSocketHost<TestItem>(
-                Substitute.For<ILogger<WebSocketHost<TestItem>>>(),
-                broker);
+            await using var connector = new WebSocketHost(
+                Substitute.For<ILogger<WebSocketHost>>(),
+                broker,
+                Serializers.Serializer.Deserialize);
             await using var client = new WebSocketClient(
                 new Uri("ws://localhost:7000"),
                 new SubscriptionRequest("test"),
                 new NullLogger<WebSocketClient>(),
+                Serializers.Serializer.Serialize,
                 50);
             var payload = new MessagePayload(
                 "here",
@@ -48,11 +50,12 @@ namespace AsyncDiskQueue.Broker.Tests
         public async void WhenReceivingMessageFromBrokerThenSendsToWebSocket()
         {
             var waitHandle = new ManualResetEventSlim(false);
-            var broker = await MessageBroker.Create(new DirectoryInfo(Path), new NullLoggerFactory())
+            var broker = await MessageBroker.Create(new DirectoryInfo(Path), new NullLoggerFactory(), Serializers.Serializer.Serialize, Serializers.Serializer.Deserialize)
                 .ConfigureAwait(false);
-            await using var connector = new WebSocketHost<TestItem>(
-                Substitute.For<ILogger<WebSocketHost<TestItem>>>(),
-                broker);
+            await using var connector = new WebSocketHost(
+                Substitute.For<ILogger<WebSocketHost>>(),
+                broker,
+                Serializers.Serializer.Deserialize);
             await using var client = new WebSocketClient(
                 new Uri("ws://localhost:7000"),
                 new SubscriptionRequest(
@@ -63,7 +66,8 @@ namespace AsyncDiskQueue.Broker.Tests
                             waitHandle.Set();
                             return Task.CompletedTask;
                         })),
-                new NullLogger<WebSocketClient>());
+                new NullLogger<WebSocketClient>(),
+                Serializers.Serializer.Serialize);
             await Task.Delay(250).ConfigureAwait(false);
 
             await broker.Publish(Message.Create("test", new TestItem { Value = "test" })).ConfigureAwait(false);

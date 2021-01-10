@@ -4,6 +4,7 @@ namespace AsyncDiskQueue.Broker.Tests
     using System.IO;
     using System.Threading;
 
+
     public abstract class MessageBrokerTestBase : IDisposable
     {
         protected const string Path = @"./queue_broker";

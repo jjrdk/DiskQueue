@@ -13,21 +13,25 @@
         private const string BrokerId = "4F545B9DEE8F413A97136C1D4CAEDEF6";
         private readonly DirectoryInfo _directory;
         private readonly ILoggerFactory _loggerFactory;
+        private readonly Func<MessagePayload, byte[]> _serializer;
+        private readonly Func<byte[], MessagePayload> _deserializer;
         private readonly HashSet<string> _topics = new();
         private readonly Dictionary<string, IAsyncDisposable> _topicWorkers = new();
         private readonly ConcurrentDictionary<(string endpoint, string topic), Task<IDiskQueue>> _queues = new();
         private readonly List<ISubscription> _subscribers;
 
-        private MessageBroker(DirectoryInfo directory, ILoggerFactory loggerFactory)
+        private MessageBroker(DirectoryInfo directory, ILoggerFactory loggerFactory, Func<MessagePayload, byte[]> serializer, Func<byte[], MessagePayload> deserializer)
         {
             _directory = directory;
             _loggerFactory = loggerFactory;
+            _serializer = serializer;
+            _deserializer = deserializer;
             _subscribers = new List<ISubscription>();
         }
 
-        public static async Task<IMessageBroker> Create(DirectoryInfo directory, ILoggerFactory loggerFactory)
+        public static async Task<IMessageBroker> Create(DirectoryInfo directory, ILoggerFactory loggerFactory, Func<MessagePayload, byte[]> serializer, Func<byte[], MessagePayload> deserializer)
         {
-            var broker = new MessageBroker(directory, loggerFactory);
+            var broker = new MessageBroker(directory, loggerFactory, serializer, deserializer);
             if (!Directory.Exists(directory.FullName))
             {
                 Directory.CreateDirectory(directory.FullName);
@@ -56,7 +60,7 @@
             {
                 var (topic, task) = tuple;
                 var queue = await task.ConfigureAwait(false);
-                using var session = queue.OpenSession(Serializer.Serialize, Serializer.Deserialize);
+                using var session = queue.OpenSession(_serializer, _deserializer);
                 await session.Enqueue(message with { Topics = new[] { topic } }).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }

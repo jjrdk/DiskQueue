@@ -9,20 +9,26 @@
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
 
-    internal class WebSocketHost<T> : IAsyncDisposable where T : class
+    internal class WebSocketHost : IAsyncDisposable
     {
-        private readonly ILogger<WebSocketHost<T>> _logger;
+        private readonly ILogger<WebSocketHost> _logger;
         private readonly IMessageBroker _broker;
+        private readonly Func<byte[], MessagePayload> _deserializer;
         private readonly int _bufferSize;
         private readonly HttpListener _listener = new();
         private readonly CancellationTokenSource _tokenSource = new();
         private readonly Task _worker;
 
-        public WebSocketHost(ILogger<WebSocketHost<T>> logger, IMessageBroker broker, int bufferSize = 1024 * 64)
+        public WebSocketHost(
+            ILogger<WebSocketHost> logger,
+            IMessageBroker broker,
+            Func<byte[], MessagePayload> deserializer,
+            int bufferSize = 1024 * 64)
         {
             _listener.Prefixes.Add("http://localhost:7000/");
             _logger = logger;
             _broker = broker;
+            _deserializer = deserializer;
             _bufferSize = bufferSize;
             _listener.Start();
             _worker = DoWork();
@@ -44,8 +50,12 @@
                         context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                     }
                 }
-                catch (ObjectDisposedException) { }
-                catch (HttpListenerException) { }
+                catch (ObjectDisposedException)
+                {
+                }
+                catch (HttpListenerException)
+                {
+                }
             }
         }
 
@@ -69,9 +79,7 @@
             var endpoint = absolutePath[..absolutePath.IndexOf('/')].Trim('/');
             var topic = absolutePath[absolutePath.IndexOf('/')..].Trim('/');
             var subscription = await _broker.Subscribe(
-                    new SubscriptionRequest(
-                        endpoint,
-                        new WebSocketSubscriber(topic, webSocket)))
+                    new SubscriptionRequest(endpoint, new WebSocketSubscriber(topic, webSocket)))
                 .ConfigureAwait(false);
             byte[] buffer = null;
             try
@@ -85,7 +93,8 @@
                     switch (receiveResult.MessageType)
                     {
                         case WebSocketMessageType.Close:
-                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", cancellationToken).ConfigureAwait(false);
+                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", cancellationToken)
+                                .ConfigureAwait(false);
                             break;
                         case WebSocketMessageType.Text:
                             break;
@@ -93,7 +102,7 @@
                             msg.AddRange(buffer[..receiveResult.Count]);
                             if (receiveResult.EndOfMessage)
                             {
-                                var json = Serializer.Deserialize(msg.ToArray());
+                                var json = _deserializer(msg.ToArray());
                                 await _broker.Publish(json).ConfigureAwait(false);
                                 msg.Clear();
                             }
@@ -102,7 +111,9 @@
                     }
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+            }
             catch (Exception e)
             {
                 _logger.LogError(e, "Error receiving content");

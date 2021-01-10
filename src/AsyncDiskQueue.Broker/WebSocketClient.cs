@@ -13,23 +13,31 @@
     {
         private readonly Uri _host;
         private readonly ILogger<WebSocketClient> _logger;
+        private readonly Func<MessagePayload, byte[]> _serializer;
         private readonly int _bufferSize;
         private readonly CancellationTokenSource _tokenSource = new();
         private readonly Dictionary<string, ClientWebSocket> _webSockets;
         private readonly Task[] _listeners;
 
-        public WebSocketClient(Uri host, ISubscriptionRequest subscriptionRequest, ILogger<WebSocketClient> logger, int bufferSize = 4 * 1024)
+        public WebSocketClient(
+            Uri host,
+            ISubscriptionRequest subscriptionRequest,
+            ILogger<WebSocketClient> logger,
+            Func<MessagePayload, byte[]> serializer,
+            int bufferSize = 4 * 1024)
         {
             _host = host;
             _logger = logger;
+            _serializer = serializer;
             _bufferSize = bufferSize;
             var tuples = subscriptionRequest.MessageReceivers.Select(
-                x =>
-                {
-                    var topicUri = GetTopicUri(host, subscriptionRequest.SubscriberInfo.EndPoint, x.Topic);
-                    var socket = KeyValuePair.Create(x.Topic, new ClientWebSocket());
-                    return (socket, Listen(topicUri, socket.Value, x.OnNext, _tokenSource.Token));
-                }).ToArray();
+                    x =>
+                    {
+                        var topicUri = GetTopicUri(host, subscriptionRequest.SubscriberInfo.EndPoint, x.Topic);
+                        var socket = KeyValuePair.Create(x.Topic, new ClientWebSocket());
+                        return (socket, Listen(topicUri, socket.Value, x.OnNext, _tokenSource.Token));
+                    })
+                .ToArray();
             _webSockets = new Dictionary<string, ClientWebSocket>(tuples.Select(x => x.socket));
             _listeners = tuples.Select(x => x.Item2).ToArray();
         }
@@ -45,33 +53,37 @@
         public async Task Send(MessagePayload message, CancellationToken cancellationToken = default)
         {
             var tasks = message.Topics.Select(
-                      async t =>
-                      {
-                          var existing = _webSockets.TryGetValue(t, out var socket);
-                          if (!existing)
-                          {
-                              socket = new ClientWebSocket();
-                              await socket.ConnectAsync(GetTopicUri(_host, "send", t), cancellationToken)
-                                  .ConfigureAwait(false);
-                          }
+                async t =>
+                {
+                    var existing = _webSockets.TryGetValue(t, out var socket);
+                    if (!existing)
+                    {
+                        socket = new ClientWebSocket();
+                        await socket.ConnectAsync(GetTopicUri(_host, "send", t), cancellationToken)
+                            .ConfigureAwait(false);
+                    }
 
-                          var buffer = Serializer.Serialize(message with { Topics = new[] { t } });
+                    var buffer = _serializer(message with {Topics = new[] {t}});
 
-                          for (var i = 0; i < buffer.Length; i += _bufferSize)
-                          {
-                              var count = Math.Min(buffer.Length - i, _bufferSize);
-                              var segment = new ArraySegment<byte>(buffer, i, count);
+                    for (var i = 0; i < buffer.Length; i += _bufferSize)
+                    {
+                        var count = Math.Min(buffer.Length - i, _bufferSize);
+                        var segment = new ArraySegment<byte>(buffer, i, count);
 
-                              await socket.SendAsync(segment, WebSocketMessageType.Binary, i + count == buffer.Length, cancellationToken)
-                                  .ConfigureAwait(false);
-                          }
+                        await socket.SendAsync(
+                                segment,
+                                WebSocketMessageType.Binary,
+                                i + count == buffer.Length,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
 
-                          if (!existing)
-                          {
-                              await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, cancellationToken)
-                                         .ConfigureAwait(false);
-                          }
-                      });
+                    if (!existing)
+                    {
+                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                });
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
@@ -108,6 +120,7 @@
                                 await handler(msg.ToArray(), cancellationToken).ConfigureAwait(false);
                                 msg.Clear();
                             }
+
                             break;
                     }
                 }
@@ -132,8 +145,10 @@
                     || webSocket.State == WebSocketState.CloseReceived
                     || webSocket.State == WebSocketState.CloseSent)
                 {
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, cancellationToken).ConfigureAwait(false);
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, cancellationToken)
+                        .ConfigureAwait(false);
                 }
+
                 webSocket.Dispose();
                 if (buffer != null)
                 {
@@ -154,17 +169,24 @@
                             x.Dispose();
                         }))
                 .ConfigureAwait(false);
-            await Task.WhenAll(_webSockets.Values.Select(
-                async socket =>
-                {
-                    try
-                    {
-                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None)
-                            .ConfigureAwait(false);
-                        socket.Dispose();
-                    }
-                    catch (ObjectDisposedException) { }
-                })).ConfigureAwait(false);
+            await Task.WhenAll(
+                    _webSockets.Values.Select(
+                        async socket =>
+                        {
+                            try
+                            {
+                                await socket.CloseAsync(
+                                        WebSocketCloseStatus.NormalClosure,
+                                        null,
+                                        CancellationToken.None)
+                                    .ConfigureAwait(false);
+                                socket.Dispose();
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                            }
+                        }))
+                .ConfigureAwait(false);
         }
     }
 }

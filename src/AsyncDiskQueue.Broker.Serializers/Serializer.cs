@@ -1,11 +1,11 @@
-﻿namespace AsyncDiskQueue.Broker
+﻿namespace AsyncDiskQueue.Broker.Serializers
 {
     using System.IO;
     using System.IO.Compression;
     using System.Text;
     using Newtonsoft.Json;
 
-    internal static class Serializer
+    public static class Serializer
     {
         private static readonly JsonSerializerSettings SerializerSettings;
 
