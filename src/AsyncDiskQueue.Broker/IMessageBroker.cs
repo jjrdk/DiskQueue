@@ -2,10 +2,11 @@
 {
     using System;
     using System.Threading.Tasks;
+    using Abstractions;
 
     public interface IMessageBroker : IAsyncDisposable
     {
-        Task Publish(MessagePayload message);
+        Task Publish(Memory<byte> message, params string[] topics);
 
         Task<IAsyncDisposable> Subscribe(ISubscriptionRequest subscriptionRequest);
     }

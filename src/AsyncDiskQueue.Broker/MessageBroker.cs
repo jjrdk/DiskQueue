@@ -6,6 +6,7 @@
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
+    using Abstractions;
     using Microsoft.Extensions.Logging;
 
     public class MessageBroker : IMessageBroker
@@ -13,25 +14,21 @@
         private const string BrokerId = "4F545B9DEE8F413A97136C1D4CAEDEF6";
         private readonly DirectoryInfo _directory;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly Func<MessagePayload, byte[]> _serializer;
-        private readonly Func<byte[], MessagePayload> _deserializer;
         private readonly HashSet<string> _topics = new();
         private readonly Dictionary<string, IAsyncDisposable> _topicWorkers = new();
         private readonly ConcurrentDictionary<(string endpoint, string topic), Task<IDiskQueue>> _queues = new();
         private readonly List<ISubscription> _subscribers;
 
-        private MessageBroker(DirectoryInfo directory, ILoggerFactory loggerFactory, Func<MessagePayload, byte[]> serializer, Func<byte[], MessagePayload> deserializer)
+        private MessageBroker(DirectoryInfo directory, ILoggerFactory loggerFactory)
         {
             _directory = directory;
             _loggerFactory = loggerFactory;
-            _serializer = serializer;
-            _deserializer = deserializer;
             _subscribers = new List<ISubscription>();
         }
 
-        public static async Task<MessageBroker> Create(DirectoryInfo directory, ILoggerFactory loggerFactory, Func<MessagePayload, byte[]> serializer, Func<byte[], MessagePayload> deserializer)
+        public static async Task<MessageBroker> Create(DirectoryInfo directory, ILoggerFactory loggerFactory)
         {
-            var broker = new MessageBroker(directory, loggerFactory, serializer, deserializer);
+            var broker = new MessageBroker(directory, loggerFactory);
             if (!Directory.Exists(directory.FullName))
             {
                 Directory.CreateDirectory(directory.FullName);
@@ -53,18 +50,18 @@
             return broker;
         }
 
-        async Task IMessageBroker.Publish(MessagePayload message)
+        async Task IMessageBroker.Publish(Memory<byte> message, params string[] topics)
         {
             // Put into topic queues
             async Task Enqueue(Task<IDiskQueue> task)
             {
                 var queue = await task.ConfigureAwait(false);
-                using var session = queue.OpenSession(_serializer, _deserializer);
+                using var session = queue.OpenSession();
                 await session.Enqueue(message).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }
 
-            var tasks = message.Topics.Distinct()
+            var tasks = topics.Distinct()
                 .Select(t => t.Hash())
                 .Where(_topics.Contains)
                 .Select(s => _queues.GetOrAdd((BrokerId, s), GetQueue))

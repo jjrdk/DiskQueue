@@ -1,4 +1,4 @@
-﻿namespace AsyncDiskQueue.Broker
+﻿namespace AsyncDiskQueue.Broker.Clients
 {
     using System;
     using System.Buffers;
@@ -7,6 +7,7 @@
     using System.Net.WebSockets;
     using System.Threading;
     using System.Threading.Tasks;
+    using Abstractions;
     using Microsoft.Extensions.Logging;
 
     public class WebSocketClient : IAsyncDisposable
@@ -34,10 +35,10 @@
                     x =>
                     {
                         var topicUri = GetTopicUri(host, subscriptionRequest.SubscriberInfo.EndPoint, x.Topic);
-                        var socket = KeyValuePair.Create(x.Topic, new ClientWebSocket());
+                        var socket = KeyValuePair.Create<string, ClientWebSocket>(x.Topic, new ClientWebSocket());
                         return (socket, Listen(topicUri, socket.Value, x.OnNext, _tokenSource.Token));
                     })
-                .ToArray();
+                .ToArray<(KeyValuePair<string, ClientWebSocket> socket, Task)>();
             _webSockets = new Dictionary<string, ClientWebSocket>(tuples.Select(x => x.socket));
             _listeners = tuples.Select(x => x.Item2).ToArray();
         }
@@ -52,7 +53,8 @@
 
         public async Task Send(MessagePayload message, CancellationToken cancellationToken = default)
         {
-            var tasks = message.Topics.Select(
+            var tasks = Enumerable.Select<string, Task>(
+                message.Topics,
                 async t =>
                 {
                     var existing = _webSockets.TryGetValue(t, out var socket);
@@ -63,7 +65,7 @@
                             .ConfigureAwait(false);
                     }
 
-                    var buffer = _serializer(message with { Topics = new[] { t } });
+                    var buffer = _serializer(message with {Topics = new[] {t}});
 
                     for (var i = 0; i < buffer.Length; i += _bufferSize)
                     {

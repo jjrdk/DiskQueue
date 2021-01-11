@@ -1,4 +1,4 @@
-﻿namespace AsyncDiskQueue.Broker
+﻿namespace AsyncDiskQueue.Broker.Clients
 {
     using System;
     using System.Buffers;
@@ -10,6 +10,7 @@
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using Abstractions;
     using Microsoft.Extensions.Logging;
 
     public class TcpNetworkClient : IAsyncDisposable
@@ -31,12 +32,11 @@
             _logger = logger;
             _serializer = serializer;
             var tuples = subscriptionRequest.MessageReceivers.Select(
-                    x =>
-                    {
-                        var socket = KeyValuePair.Create(x.Topic, new TcpClient());
-                        return (socket, Listen(subscriptionRequest.SubscriberInfo.EndPoint, x.Topic, socket.Value, x.OnNext, _tokenSource.Token));
-                    })
-                .ToArray();
+                x =>
+                {
+                    var socket = KeyValuePair.Create<string, TcpClient>(x.Topic, new TcpClient());
+                    return (socket, Listen(subscriptionRequest.SubscriberInfo.EndPoint, x.Topic, socket.Value, x.OnNext, _tokenSource.Token));
+                }).ToArray<(KeyValuePair<string, TcpClient> socket, Task)>();
             _clients = new Dictionary<string, TcpClient>(tuples.Select(x => x.socket));
             _listeners = tuples.Select(x => x.Item2).ToArray();
         }
@@ -84,7 +84,7 @@
             }
         }
 
-        private async Task PerformHandshake(
+        private static async Task PerformHandshake(
             string endpoint,
             string topic,
             Stream stream,
@@ -134,17 +134,17 @@
 
         public async Task Send(MessagePayload payload, CancellationToken cancellationToken)
         {
-            var tasks = payload.Topics.Distinct().Select(
+            var tasks = Enumerable.Distinct<string>(payload.Topics).Select(
                     async topic =>
                     {
                         try
                         {
-                            var client = new TcpClient { NoDelay = true, LingerState = new LingerOption(true, 5) };
+                            using var client = new TcpClient { NoDelay = true, LingerState = new LingerOption(true, 5) };
                             await client.ConnectAsync(_endPoint.Address, _endPoint.Port, cancellationToken)
                                 .ConfigureAwait(false);
 
                             await using var networkStream = client.GetStream();
-                            await PerformHandshake("send", "send", networkStream, cancellationToken)
+                            await PerformHandshake("send", topic, networkStream, cancellationToken)
                                 .ConfigureAwait(false);
 
                             var bytes = _serializer(payload with { Topics = new[] { topic } });
@@ -159,7 +159,6 @@
                                 throw new Exception();
                             }
                             client.Close();
-                            client.Dispose();
                         }
                         catch (OperationCanceledException)
                         {

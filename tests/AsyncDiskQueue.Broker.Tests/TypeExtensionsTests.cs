@@ -2,6 +2,7 @@ namespace AsyncDiskQueue.Broker.Tests
 {
     using System;
     using System.Linq;
+    using Abstractions;
     using Xunit;
 
     public class TypeExtensionsTests

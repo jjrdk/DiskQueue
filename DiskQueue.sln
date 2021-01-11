@@ -15,7 +15,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AsyncDiskQueue.Broker", "sr
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AsyncDiskQueue.Broker.Tests", "tests\AsyncDiskQueue.Broker.Tests\AsyncDiskQueue.Broker.Tests.csproj", "{EB3060A4-C5EF-4B03-A525-D533F8B4B0CA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncDiskQueue.Broker.Serializers.Newtonsoft", "src\AsyncDiskQueue.Broker.Serializers\AsyncDiskQueue.Broker.Serializers.Newtonsoft.csproj", "{47321C31-E49C-4531-B247-35ABC791AA49}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AsyncDiskQueue.Broker.Serializers.Newtonsoft", "src\AsyncDiskQueue.Broker.Serializers\AsyncDiskQueue.Broker.Serializers.Newtonsoft.csproj", "{47321C31-E49C-4531-B247-35ABC791AA49}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncDiskQueue.Broker.Clients", "src\AsyncDiskQueue.Broker.Clients\AsyncDiskQueue.Broker.Clients.csproj", "{D001B8C1-E0C2-4CB7-A082-AC0C7C0B63A9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncDiskQueue.Broker.Abstractions", "src\AsyncDiskQueue.Broker.Abstractions\AsyncDiskQueue.Broker.Abstractions.csproj", "{F6BE4A62-6A51-429A-8304-79F2CB7E6778}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,6 +55,14 @@ Global
 		{47321C31-E49C-4531-B247-35ABC791AA49}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{47321C31-E49C-4531-B247-35ABC791AA49}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{47321C31-E49C-4531-B247-35ABC791AA49}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D001B8C1-E0C2-4CB7-A082-AC0C7C0B63A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D001B8C1-E0C2-4CB7-A082-AC0C7C0B63A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D001B8C1-E0C2-4CB7-A082-AC0C7C0B63A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D001B8C1-E0C2-4CB7-A082-AC0C7C0B63A9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6BE4A62-6A51-429A-8304-79F2CB7E6778}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6BE4A62-6A51-429A-8304-79F2CB7E6778}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6BE4A62-6A51-429A-8304-79F2CB7E6778}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6BE4A62-6A51-429A-8304-79F2CB7E6778}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

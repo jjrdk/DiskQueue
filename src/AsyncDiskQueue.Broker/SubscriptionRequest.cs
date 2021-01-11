@@ -1,5 +1,7 @@
 ﻿namespace AsyncDiskQueue.Broker
 {
+    using Abstractions;
+
     public class SubscriptionRequest : ISubscriptionRequest
     {
         public SubscriptionRequest(string endPoint, params IMessageReceiver[] handlers)

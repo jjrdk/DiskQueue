@@ -16,20 +16,17 @@
         private readonly TcpListener _listener;
         private readonly ILogger<TcpHost> _logger;
         private readonly IMessageBroker _broker;
-        private readonly Func<byte[], MessagePayload> _deserializer;
         private readonly Task _worker;
 
         public TcpHost(
             IPEndPoint endPoint,
             ILogger<TcpHost> logger,
-            IMessageBroker broker,
-            Func<byte[], MessagePayload> deserializer)
+            IMessageBroker broker)
         {
-            _listener = new(endPoint) {ExclusiveAddressUse = true};
+            _listener = new(endPoint) { ExclusiveAddressUse = true };
             _listener.Server.LingerState = new LingerOption(true, 3);
             _logger = logger;
             _broker = broker;
-            _deserializer = deserializer;
             _listener.Start();
             _worker = DoWork();
         }
@@ -54,7 +51,7 @@
         {
             await using var stream = socket.GetStream();
 
-            var subscription = await PerformHandshake(socket, stream, cancellationToken).ConfigureAwait(false);
+            var (topic, subscription) = await PerformHandshake(socket, stream, cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -64,8 +61,8 @@
                     _ = await stream.ReadAsync(msgBuffer.AsMemory(0, 4), cancellationToken).ConfigureAwait(false);
                     ArrayPool<byte>.Shared.Return(msgBuffer);
                     var msgSize = BitConverter.ToInt32(msgBuffer, 0);
-                    var buffer = ArrayPool<byte>.Shared.Rent(msgSize);
 
+                    var buffer = ArrayPool<byte>.Shared.Rent(msgSize);
                     var receiveResult = await stream.ReadAsync(buffer.AsMemory(0, msgSize), cancellationToken)
                         .ConfigureAwait(false);
                     if (receiveResult != msgSize)
@@ -74,8 +71,8 @@
                         _logger.LogError(message);
                         throw new InvalidDataException(message);
                     }
-                    var json = _deserializer(buffer.AsMemory(0, msgSize).ToArray());
-                    await _broker.Publish(json).ConfigureAwait(false);
+
+                    await _broker.Publish(buffer.AsMemory(0, msgSize), topic.Split('^')).ConfigureAwait(false);
                     ArrayPool<byte>.Shared.Return(buffer);
 
                     stream.WriteByte(0);
@@ -95,7 +92,7 @@
             }
         }
 
-        private async Task<IAsyncDisposable> PerformHandshake(TcpClient socket, Stream stream, CancellationToken cancellationToken)
+        private async Task<(string topic, IAsyncDisposable subscription)> PerformHandshake(TcpClient socket, Stream stream, CancellationToken cancellationToken)
         {
             var endpoint = await ReadString(stream, cancellationToken).ConfigureAwait(false);
             var topic = await ReadString(stream, cancellationToken).ConfigureAwait(false);
@@ -106,7 +103,7 @@
 
             stream.WriteByte(0);
             await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            return subscription;
+            return (topic, subscription);
         }
 
         private static async Task<string> ReadString(Stream stream, CancellationToken cancellationToken)

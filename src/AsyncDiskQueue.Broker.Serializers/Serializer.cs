@@ -1,9 +1,10 @@
-﻿namespace AsyncDiskQueue.Broker.Serializers
+﻿namespace AsyncDiskQueue.Broker.Serializers.Newtonsoft
 {
     using System.IO;
     using System.IO.Compression;
     using System.Text;
-    using Newtonsoft.Json;
+    using Abstractions;
+    using global::Newtonsoft.Json;
 
     public static class Serializer
     {

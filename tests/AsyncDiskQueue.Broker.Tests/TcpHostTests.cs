@@ -8,10 +8,12 @@ namespace AsyncDiskQueue.Broker.Tests
     using System.Net;
     using System.Threading;
     using System.Threading.Tasks;
+    using Abstractions;
+    using Clients;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Logging.Abstractions;
     using NSubstitute;
-    using Serializers;
+    using Serializers.Newtonsoft;
     using Xunit;
 
     public class TcpHostTests : MessageBrokerTestBase
@@ -21,17 +23,16 @@ namespace AsyncDiskQueue.Broker.Tests
         {
             var waitHandle = new ManualResetEventSlim(false);
             var broker = Substitute.For<IMessageBroker>();
-            broker.When(b => b.Publish(Arg.Any<MessagePayload>())).Do(c => waitHandle.Set());
+            broker.When(b => b.Publish(Arg.Any<Memory<byte>>(), Arg.Any<string[]>())).Do(c => waitHandle.Set());
             await using var connector = new TcpHost(
                 new IPEndPoint(IPAddress.IPv6Loopback, 7001),
                 Substitute.For<ILogger<TcpHost>>(),
-                broker,
-                Serializers.Serializer.Deserialize);
+                broker);
             await using var client = new TcpNetworkClient(
                 new IPEndPoint(IPAddress.IPv6Loopback, 7001),
                 new SubscriptionRequest("test", new DelegateReceiver<TestItem>((_, __) => Task.CompletedTask)),
                 new NullLogger<TcpNetworkClient>(),
-                Serializers.Serializer.Serialize);
+                Serializer.Serialize);
             //await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
             var payload = new MessagePayload(
                 "here",
@@ -53,18 +54,13 @@ namespace AsyncDiskQueue.Broker.Tests
         public async void WhenReceivingMessageFromTcpSocketThenSendsToOtherClients()
         {
             var waitHandle = new ManualResetEventSlim(false);
-            var broker = await MessageBroker.Create(
-                    new DirectoryInfo(Path),
-                    new NullLoggerFactory(),
-                    Serializer.Serialize,
-                    Serializer.Deserialize)
+            var broker = await MessageBroker.Create(new DirectoryInfo(Path), new NullLoggerFactory())
                 .ConfigureAwait(false);
 
             await using var connector = new TcpHost(
                 new IPEndPoint(IPAddress.IPv6Loopback, 7001),
                 Substitute.For<ILogger<TcpHost>>(),
-                broker,
-                Serializer.Deserialize);
+                broker);
             await using var subscriber = new TcpNetworkClient(
                 new IPEndPoint(IPAddress.IPv6Loopback, 7001),
                 new SubscriptionRequest(
@@ -105,23 +101,18 @@ namespace AsyncDiskQueue.Broker.Tests
         public async void WhenReceivingMessageFromBrokerThenSendsToTcpSocket()
         {
             var waitHandle = new ManualResetEventSlim(false);
-            IMessageBroker broker = await MessageBroker.Create(
-                    new DirectoryInfo(Path),
-                    new NullLoggerFactory(),
-                    Serializer.Serialize,
-                    Serializer.Deserialize)
+            IMessageBroker broker = await MessageBroker.Create(new DirectoryInfo(Path), new NullLoggerFactory())
                 .ConfigureAwait(false);
             await using var connector = new TcpHost(
                 new IPEndPoint(IPAddress.IPv6Loopback, 7001),
                 Substitute.For<ILogger<TcpHost>>(),
-                broker,
-                Serializer.Deserialize);
+                broker);
             await using var client = new TcpNetworkClient(
                 new IPEndPoint(IPAddress.IPv6Loopback, 7001),
                 new SubscriptionRequest(
                     "test",
                     new DelegateReceiver<TestItem>(
-                        (t, c) =>
+                        (_, _) =>
                         {
                             waitHandle.Set();
                             return Task.CompletedTask;
@@ -130,7 +121,8 @@ namespace AsyncDiskQueue.Broker.Tests
                 Serializer.Serialize);
             await Task.Delay(250).ConfigureAwait(false);
 
-            await broker.Publish(Message.Create("test", new TestItem {Value = "test"})).ConfigureAwait(false);
+            var (bytes, topics) = Message.Create("test", new TestItem {Value = "test"});
+            await broker.Publish(bytes, topics).ConfigureAwait(false);
 
             var success = waitHandle.Wait(TimeSpan.FromMilliseconds(50000));
 

@@ -13,22 +13,16 @@
     {
         private readonly ILogger<WebSocketHost> _logger;
         private readonly IMessageBroker _broker;
-        private readonly Func<byte[], MessagePayload> _deserializer;
         private readonly int _bufferSize;
         private readonly HttpListener _listener = new();
         private readonly CancellationTokenSource _tokenSource = new();
         private readonly Task _worker;
 
-        public WebSocketHost(
-            ILogger<WebSocketHost> logger,
-            IMessageBroker broker,
-            Func<byte[], MessagePayload> deserializer,
-            int bufferSize = 1024 * 64)
+        public WebSocketHost(ILogger<WebSocketHost> logger, IMessageBroker broker, int bufferSize = 1024 * 64)
         {
             _listener.Prefixes.Add("http://localhost:7000/");
             _logger = logger;
             _broker = broker;
-            _deserializer = deserializer;
             _bufferSize = bufferSize;
             _listener.Start();
             _worker = DoWork();
@@ -75,9 +69,10 @@
             }
 
             var webSocket = webSocketContext.WebSocket;
-            var absolutePath = listenerContext.Request.Url!.AbsolutePath.Trim('/');
-            var endpoint = absolutePath[..absolutePath.IndexOf('/')].Trim('/');
-            var topic = absolutePath[absolutePath.IndexOf('/')..].Trim('/');
+            const char separator = '/';
+            var absolutePath = listenerContext.Request.Url!.AbsolutePath.Trim(separator);
+            var endpoint = absolutePath[..absolutePath.IndexOf(separator)].Trim(separator);
+            var topic = absolutePath[absolutePath.IndexOf(separator)..].Trim(separator);
             var subscription = await _broker.Subscribe(
                     new SubscriptionRequest(endpoint, new WebSocketSubscriber(topic, webSocket)))
                 .ConfigureAwait(false);
@@ -102,8 +97,7 @@
                             msg.AddRange(buffer[..receiveResult.Count]);
                             if (receiveResult.EndOfMessage)
                             {
-                                var json = _deserializer(msg.ToArray());
-                                await _broker.Publish(json).ConfigureAwait(false);
+                                await _broker.Publish(msg.ToArray(), topic).ConfigureAwait(false);
                                 msg.Clear();
                             }
 

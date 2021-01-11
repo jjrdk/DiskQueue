@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AsyncDiskQueue.Broker.Abstractions\AsyncDiskQueue.Broker.Abstractions.csproj" />
     <ProjectReference Include="..\DiskQueue\AsyncDiskQueue.csproj" />
   </ItemGroup>
 

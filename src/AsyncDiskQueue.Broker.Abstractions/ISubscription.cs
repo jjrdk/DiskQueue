@@ -1,4 +1,4 @@
-﻿namespace AsyncDiskQueue.Broker
+﻿namespace AsyncDiskQueue.Broker.Abstractions
 {
     using System;
     using System.Threading;
