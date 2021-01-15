@@ -52,7 +52,6 @@ namespace AsyncDiskQueue.Implementation.CrossPlatform.Unix
 
 		/// <summary> Read, write, search and execute, others </summary>
 		SIrwxo = 7u,
-
 		
 		/// <summary> Read, write, search and execute for owner, group and others </summary>
 		Accessperms = 511u,

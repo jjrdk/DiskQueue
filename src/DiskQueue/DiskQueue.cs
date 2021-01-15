@@ -520,6 +520,7 @@ namespace AsyncDiskQueue
                 {
                     await ReadAhead().ConfigureAwait(false);
                 }
+
                 _entries.RemoveFirst();
                 // we need to create a copy so we will not hold the data
                 // in memory as well as the position
@@ -527,7 +528,12 @@ namespace AsyncDiskQueue
                 {
                     _checkedOutEntries.Add(new Entry(entry.FileNumber, entry.Start, entry.Length));
                 }
+
                 return entry;
+            }
+            catch (TaskCanceledException)
+            {
+                return null;
             }
             finally
             {

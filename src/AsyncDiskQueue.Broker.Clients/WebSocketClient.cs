@@ -3,6 +3,7 @@
     using System;
     using System.Buffers;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
     using System.Net.WebSockets;
     using System.Threading;
@@ -57,34 +58,38 @@
                 message.Topics,
                 async t =>
                 {
-                    var existing = _webSockets.TryGetValue(t, out var socket);
-                    if (!existing)
+                    try
                     {
-                        socket = new ClientWebSocket();
-                        await socket.ConnectAsync(GetTopicUri(_host, "send", t), cancellationToken)
-                            .ConfigureAwait(false);
+                        var existing = _webSockets.TryGetValue(t, out var socket);
+                        if (!existing)
+                        {
+                            socket = new ClientWebSocket();
+                            await socket.ConnectAsync(GetTopicUri(_host, "send", t), cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+
+                        var buffer = _serializer(message with { Topics = new[] { t } });
+
+                        for (var i = 0; i < buffer.Length; i += _bufferSize)
+                        {
+                            var count = Math.Min(buffer.Length - i, _bufferSize);
+                            var segment = new ArraySegment<byte>(buffer, i, count);
+
+                            await socket.SendAsync(
+                                    segment,
+                                    WebSocketMessageType.Binary,
+                                    i + count == buffer.Length,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+
+                        if (!existing)
+                        {
+                            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
                     }
-
-                    var buffer = _serializer(message with {Topics = new[] {t}});
-
-                    for (var i = 0; i < buffer.Length; i += _bufferSize)
-                    {
-                        var count = Math.Min(buffer.Length - i, _bufferSize);
-                        var segment = new ArraySegment<byte>(buffer, i, count);
-
-                        await socket.SendAsync(
-                                segment,
-                                WebSocketMessageType.Binary,
-                                i + count == buffer.Length,
-                                cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-
-                    if (!existing)
-                    {
-                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
+                    catch (IOException) { }
                 });
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }

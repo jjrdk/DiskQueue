@@ -18,9 +18,12 @@
         private readonly CancellationTokenSource _tokenSource = new();
         private readonly Task _worker;
 
-        public WebSocketHost(ILogger<WebSocketHost> logger, IMessageBroker broker, int bufferSize = 1024 * 64)
+        public WebSocketHost(IEnumerable<string> prefixes, ILogger<WebSocketHost> logger, IMessageBroker broker, int bufferSize = 1024 * 64)
         {
-            _listener.Prefixes.Add("http://localhost:7000/");
+            foreach (var prefix in prefixes)
+            {
+                _listener.Prefixes.Add(prefix);
+            }
             _logger = logger;
             _broker = broker;
             _bufferSize = bufferSize;

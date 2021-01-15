@@ -15,7 +15,7 @@ namespace AsyncDiskQueue.Broker.Tests
             ClearPath();
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             ClearPath();
 
