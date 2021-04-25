@@ -1,39 +1,34 @@
-﻿using System;
-using System.Threading;
-using NUnit.Framework;
-// ReSharper disable PossibleNullReferenceException
-
-namespace DiskQueue.Tests
+﻿namespace DiskQueue.Tests
 {
+    using System;
+    using System.Threading;
     using System.Threading.Tasks;
     using AsyncDiskQueue;
     using Microsoft.Extensions.Logging;
     using NSubstitute;
+    using Xunit;
 
-    [TestFixture]
     public class ThreadSafeAccessTests
     {
-        [Test]
+        [Fact]
         public async Task Can_enqueue_and_dequeue_on_separate_threads()
         {
-            int t1s, t2s;
-            t1s = t2s = 0;
+            int t1S, t2S;
+            t1S = t2S = 0;
             const int target = 100;
-            var rnd = new Random();
+            var rnd = new Random(DateTimeOffset.Now.Millisecond);
 
-            var _subject = await PersistentQueue.Create("queue_a", Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+            var subject = await PersistentQueue.Create("queue_a", Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
             var t1 = Task.Run(
                 async () =>
                 {
                     for (var i = 0; i < target; i++)
                     {
-                        using var session = _subject.OpenSession();
-                        Console.Write("(");
+                        using var session = subject.OpenSession();
                         await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                        Interlocked.Increment(ref t1s);
+                        Interlocked.Increment(ref t1S);
                         Thread.Sleep(rnd.Next(0, 100));
                         await session.Flush().ConfigureAwait(false);
-                        Console.Write(")");
                     }
                 });
             var t2 = Task.Run(
@@ -41,13 +36,11 @@ namespace DiskQueue.Tests
                 {
                     for (var i = 0; i < target; i++)
                     {
-                        using var session = _subject.OpenSession();
-                        Console.Write("<");
+                        using var session = subject.OpenSession();
                         await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
-                        Interlocked.Increment(ref t2s);
+                        Interlocked.Increment(ref t2S);
                         Thread.Sleep(rnd.Next(0, 100));
                         await session.Flush().ConfigureAwait(false);
-                        Console.Write(">");
                     }
                 });
 
@@ -56,15 +49,15 @@ namespace DiskQueue.Tests
 
             await t1.ConfigureAwait(false);
             await t2.ConfigureAwait(false);
-            Assert.That(t1s, Is.EqualTo(target));
-            Assert.That(t2s, Is.EqualTo(target));
+            Assert.Equal(target, t1S);
+            Assert.Equal(target, t2S);
         }
 
-        [Test]
+        [Fact]
         public async Task Can_sequence_queues_on_separate_threads()
         {
-            int t1s, t2s;
-            t1s = t2s = 0;
+            int t1S, t2S;
+            t1S = t2S = 0;
             const int target = 100;
 
             var t1 = Task.Run(
@@ -75,11 +68,9 @@ namespace DiskQueue.Tests
                         await using var subject = await PersistentQueue.Create("queue_b", Substitute.For<ILoggerFactory>(), TimeSpan.FromSeconds(10))
                             .ConfigureAwait(false);
                         using var session = subject.OpenSession();
-                        Console.Write("(");
                         await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                        Interlocked.Increment(ref t1s);
+                        Interlocked.Increment(ref t1S);
                         await session.Flush().ConfigureAwait(false);
-                        Console.Write(")");
                     }
                 });
             var t2 = Task.Run(
@@ -92,11 +83,9 @@ namespace DiskQueue.Tests
                             .Create("queue_b", Substitute.For<ILoggerFactory>(), cancellationToken: source.Token)
                             .ConfigureAwait(false);
                         using var session = subject.OpenSession();
-                        Console.Write("<");
                         await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
-                        Interlocked.Increment(ref t2s);
+                        Interlocked.Increment(ref t2S);
                         await session.Flush().ConfigureAwait(false);
-                        Console.Write(">");
                         await subject.DisposeAsync().ConfigureAwait(false);
                     }
                 });
@@ -104,8 +93,8 @@ namespace DiskQueue.Tests
             await t1.ConfigureAwait(false);
             await t2.ConfigureAwait(false);
 
-            Assert.That(t1s, Is.EqualTo(target));
-            Assert.That(t2s, Is.EqualTo(target));
+            Assert.True(t1S == target);
+            Assert.True(t2S == target);
         }
     }
 }

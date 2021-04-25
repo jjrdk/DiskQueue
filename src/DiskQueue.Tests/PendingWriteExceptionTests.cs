@@ -1,17 +1,12 @@
-using NUnit.Framework;
-using System;
-using System.Linq;
-// ReSharper disable PossibleNullReferenceException
-// ReSharper disable AssignNullToNotNullAttribute
-
 namespace DiskQueue.Tests
 {
+    using System;
     using AsyncDiskQueue.Implementation;
+    using Xunit;
 
-    [TestFixture]
 	public class PendingWriteExceptionTests
 	{
-		[Test]
+		[Fact]
 		public void Can_get_all_information_from_to_string()
 		{
 			try
@@ -21,13 +16,11 @@ namespace DiskQueue.Tests
 			catch (Exception e)
 			{
 				var s = new PendingWriteException(new []{e}).ToString();
-				Assert.IsTrue(
-					s.Contains(e.ToString())
-					);
+				Assert.Contains(e.ToString(), s);
 			}
 		}
 
-		[Test]
+		[Fact]
 		public void Can_get_exception_detail_information_from_pending_write_exception()
 		{
 			try
@@ -37,9 +30,7 @@ namespace DiskQueue.Tests
 			catch (Exception e)
 			{
 				var s = new PendingWriteException(new [] { e });
-				Assert.IsTrue(
-					s.PendingWritesExceptions.Contains(e)
-					);
+				Assert.Contains(e, s.PendingWritesExceptions);
 			}
 		}
 	}

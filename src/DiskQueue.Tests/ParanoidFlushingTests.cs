@@ -1,23 +1,22 @@
-﻿using NUnit.Framework;
-// ReSharper disable PossibleNullReferenceException
-
-namespace DiskQueue.Tests
+﻿namespace DiskQueue.Tests
 {
     using System.Threading.Tasks;
     using AsyncDiskQueue;
     using Microsoft.Extensions.Logging;
     using NSubstitute;
+    using Xunit;
 
-    [TestFixture]
     public class ParanoidFlushingTests
     {
-        readonly byte[] _one = { 1, 2, 3, 4 };
-        readonly byte[] _two = { 5, 6, 7, 8 };
+        readonly byte[] _one = {1, 2, 3, 4};
+        readonly byte[] _two = {5, 6, 7, 8};
 
-        [Test]
+        [Fact]
         public async Task Paranoid_flushing_still_respects_session_rollback()
         {
-            await using var queue = await PersistentQueue.Create("./queue", Substitute.For<ILoggerFactory>(), paranoidFlushing: true).ConfigureAwait(false);
+            await using var queue = await PersistentQueue
+                .Create("./queue", Substitute.For<ILoggerFactory>(), paranoidFlushing: true)
+                .ConfigureAwait(false);
 
             // Flush only `_one`
             using (var s1 = queue.OpenSession())
@@ -30,21 +29,21 @@ namespace DiskQueue.Tests
             // Read without flushing
             using (var s2 = queue.OpenSession())
             {
-                Assert.That(await s2.Dequeue().ConfigureAwait(false), Is.EquivalentTo(_one), "Unexpected item at head of queue");
-                Assert.That(await s2.Dequeue().ConfigureAwait(false), Is.Null, "Too many items on queue");
+                Assert.Equal(_one, await s2.Dequeue().ConfigureAwait(false));
+                Assert.Null(await s2.Dequeue().ConfigureAwait(false));
             }
 
             // Read again WITH flushing
             using (var s3 = queue.OpenSession())
             {
-                Assert.That(await s3.Dequeue().ConfigureAwait(false), Is.EquivalentTo(_one), "Queue was unexpectedly empty?");
-                Assert.That(await s3.Dequeue().ConfigureAwait(false), Is.Null, "Too many items on queue");
+                Assert.Equal(_one, await s3.Dequeue().ConfigureAwait(false));
+                Assert.Null(await s3.Dequeue().ConfigureAwait(false));
                 await s3.Flush().ConfigureAwait(false);
             }
 
             // Read empty queue to be sure
             using var s4 = queue.OpenSession();
-            Assert.That(await s4.Dequeue().ConfigureAwait(false), Is.Null, "Queue was not empty after flush");
+            Assert.Null(await s4.Dequeue().ConfigureAwait(false));
             await s4.Flush().ConfigureAwait(false);
         }
     }

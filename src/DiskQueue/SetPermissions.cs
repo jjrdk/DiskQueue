@@ -60,16 +60,13 @@
             }
             else
             {
+#pragma warning disable CA1416 // Validate platform compatibility
                 var fileSecurity = new FileSecurity(path, AccessControlSections.All);
                 var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
                 fileSecurity.SetAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.Modify | FileSystemRights.Synchronize, InheritanceFlags.None, PropagationFlags.None, AccessControlType.Allow));
 
                 new FileInfo(path).SetAccessControl(fileSecurity);
-
-                //            var sec = File.GetAccessControl(path);
-                //var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
-                //sec.AddAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.Modify | FileSystemRights.Synchronize, InheritanceFlags.None, PropagationFlags.None, AccessControlType.Allow));
-                //File.SetAccessControl(path, sec);
+#pragma warning restore CA1416 // Validate platform compatibility
             }
         }
 
@@ -81,16 +78,13 @@
             }
             else
             {
+#pragma warning disable CA1416 // Validate platform compatibility
                 var directorySecurity = new DirectorySecurity(path, AccessControlSections.All);
                 var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
                 directorySecurity.AddAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.Modify | FileSystemRights.Synchronize, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
 
                 new DirectoryInfo(path).SetAccessControl(directorySecurity);
-
-                //            var sec = Directory.GetAccessControl(path);
-                //var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
-                //sec.AddAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.Modify | FileSystemRights.Synchronize, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
-                //Directory.SetAccessControl(path, sec);
+#pragma warning restore CA1416 // Validate platform compatibility
             }
         }
     }

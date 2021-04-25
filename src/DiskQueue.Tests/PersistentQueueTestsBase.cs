@@ -1,55 +1,53 @@
-using System;
-using NUnit.Framework;
-using System.IO;
-// ReSharper disable PossibleNullReferenceException
-// ReSharper disable AssignNullToNotNullAttribute
-
 namespace DiskQueue.Tests
 {
-	public class PersistentQueueTestsBase
-	{
-		protected const string Path = @"./queue";
-		static readonly object _lock = new Object();
+    using System;
+    using System.IO;
 
-		[SetUp]
-		public void Setup()
-		{
-			RebuildPath();
-		}
+    public abstract class PersistentQueueTestsBase : IDisposable
+    {
+        private const string QueuePath = @"./queue";
+        private readonly object @lock = new();
+        protected readonly string Path;
 
-		/// <summary>
-		/// This ensures that we release all files before we complete a test
-		/// </summary>
-		[TearDown]
-		public void Teardown()
-		{
-			RebuildPath();
-		}
+        protected PersistentQueueTestsBase()
+        {
+            Path = $"{QueuePath}_{Guid.NewGuid():N}";
+            RebuildPath();
+        }
 
-		static void RebuildPath()
-		{
-			lock (_lock)
-			{
-				try
-				{
-					if (Directory.Exists(Path))
-					{
-						var files = Directory.GetFiles(Path, "*", SearchOption.AllDirectories);
-						Array.Sort(files, (s1, s2) => s2.Length.CompareTo(s1.Length)); // sort by length descending
-						foreach (var file in files)
-						{
-							File.Delete(file);
-						}
+        /// <summary>
+        /// This ensures that we release all files before we complete a test
+        /// </summary>
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
+            RebuildPath();
+        }
 
-						Directory.Delete(Path, true);
+        private void RebuildPath()
+        {
+            lock (@lock)
+            {
+                try
+                {
+                    if (Directory.Exists(Path))
+                    {
+                        var files = Directory.GetFiles(Path, "*", SearchOption.AllDirectories);
+                        Array.Sort(files, (s1, s2) => s2.Length.CompareTo(s1.Length)); // sort by length descending
+                        foreach (var file in files)
+                        {
+                            File.Delete(file);
+                        }
 
-					}
-				}
-				catch (UnauthorizedAccessException)
-				{
-					Console.WriteLine("Not allowed to delete queue directory. May fail later");
-				}
-			}
-		}
-	}
+                        Directory.Delete(Path, true);
+
+                    }
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    Console.WriteLine("Not allowed to delete queue directory. May fail later");
+                }
+            }
+        }
+    }
 }

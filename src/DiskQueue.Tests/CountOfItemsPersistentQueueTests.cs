@@ -1,24 +1,21 @@
-using NUnit.Framework;
-// ReSharper disable PossibleNullReferenceException
-
 namespace DiskQueue.Tests
 {
     using System.Threading.Tasks;
     using AsyncDiskQueue;
     using Microsoft.Extensions.Logging;
     using NSubstitute;
+    using Xunit;
 
-    [TestFixture]
     public class CountOfItemsPersistentQueueTests : PersistentQueueTestsBase
     {
-        [Test]
+        [Fact]
         public async Task Can_get_count_from_queue()
         {
             await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
-            Assert.AreEqual(0, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
+            Assert.Equal(0, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
         }
 
-        [Test]
+        [Fact]
         public async Task Can_enter_items_and_get_count_of_items()
         {
             await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
@@ -29,11 +26,11 @@ namespace DiskQueue.Tests
                 await session.Flush().ConfigureAwait(false);
             }
 
-            Assert.AreEqual(5, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
+            Assert.Equal(5, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
         }
 
 
-        [Test]
+        [Fact]
         public async Task Can_get_count_of_items_after_queue_restart()
         {
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
@@ -48,7 +45,7 @@ namespace DiskQueue.Tests
 
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
-                Assert.AreEqual(5, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
+                Assert.Equal(5, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
             }
         }
     }

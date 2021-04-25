@@ -1,36 +1,35 @@
-﻿using System;
-using System.Linq;
-using NUnit.Framework;
-
-namespace DiskQueue.Tests
+﻿namespace DiskQueue.Tests
 {
+    using System;
     using System.Threading;
     using System.Threading.Tasks;
     using AsyncDiskQueue;
     using Microsoft.Extensions.Logging;
     using NSubstitute;
+    using Xunit;
 
-    [TestFixture]
-    public class LongTermDequeueTests
+    public class LongTermDequeueTests : IDisposable
     {
-        private IPersistentQueue _q;
-        private CancellationTokenSource _source;
+        private readonly IPersistentQueue _q;
+        private readonly CancellationTokenSource _source;
 
-        [SetUp]
-        public async Task Setup()
+        public LongTermDequeueTests()
         {
             _source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            _q = await PersistentQueue.Create("./queue", Substitute.For<ILoggerFactory>(), cancellationToken: _source.Token).ConfigureAwait(false);
+            _q = PersistentQueue.Create(
+                    "./queue",
+                    Substitute.For<ILoggerFactory>(),
+                    cancellationToken: _source.Token).GetAwaiter().GetResult();
         }
 
-        [TearDown]
-        public async Task Teardown()
+        public void Dispose()
         {
-            await _q.DisposeAsync().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+            _q.DisposeAsync().AsTask().Wait();
             _source.Dispose();
         }
 
-        [Test]
+        [Fact]
         public async Task Can_enqueue_during_a_long_dequeue()
         {
             var s1 = _q.OpenSession();
@@ -45,7 +44,7 @@ namespace DiskQueue.Tests
             await s1.Flush().ConfigureAwait(false);
             s1.Dispose();
 
-            Assert.That(x.SequenceEqual(new byte[] { 1, 2, 3, 4 }));
+            Assert.Equal(new byte[] { 1, 2, 3, 4 }, x);
         }
 
     }

@@ -1,23 +1,18 @@
-using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.IO;
-
-// ReSharper disable PossibleNullReferenceException
-// ReSharper disable AssignNullToNotNullAttribute
-
 namespace DiskQueue.Tests
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
     using System.Threading.Tasks;
     using AsyncDiskQueue;
     using AsyncDiskQueue.Implementation;
     using Microsoft.Extensions.Logging;
     using NSubstitute;
+    using Xunit;
 
-    [TestFixture]
     public class TransactionLogTests : PersistentQueueTestsBase
     {
-        [Test]
+        [Fact]
         public async Task Transaction_log_size_shrink_after_queue_disposed()
         {
             long txSizeWhenOpen;
@@ -48,10 +43,10 @@ namespace DiskQueue.Tests
             }
 
             txLogInfo.Refresh();
-            Assert.Less(txLogInfo.Length, txSizeWhenOpen);
+            Assert.True(txLogInfo.Length < txSizeWhenOpen);
         }
 
-        [Test]
+        [Fact]
         public async Task Count_of_items_will_remain_fixed_after_dequeueing_without_flushing()
         {
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), paranoidFlushing: false).ConfigureAwait(false))
@@ -73,7 +68,7 @@ namespace DiskQueue.Tests
                         await session.Dequeue().ConfigureAwait(false);
                     }
 
-                    Assert.IsNull(await session.Dequeue());
+                    Assert.Null(await session.Dequeue().ConfigureAwait(false));
 
                     //	session.Flush(); explicitly removed
                 }
@@ -81,11 +76,11 @@ namespace DiskQueue.Tests
 
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
-                Assert.AreEqual(10, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
+                Assert.Equal(10, ((IPersistentQueueStore)queue).EstimatedCountOfItemsInQueue);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task Dequeue_items_that_were_not_flushed_will_appear_after_queue_restart()
         {
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
@@ -107,7 +102,7 @@ namespace DiskQueue.Tests
                         await session.Dequeue().ConfigureAwait(false);
                     }
 
-                    Assert.IsNull(await session.Dequeue());
+                    Assert.Null(await session.Dequeue().ConfigureAwait(false));
 
                     //	session.Flush(); explicitly removed
                 }
@@ -121,12 +116,12 @@ namespace DiskQueue.Tests
                     await session.Dequeue().ConfigureAwait(false);
                 }
 
-                Assert.IsNull(await session.Dequeue());
+                Assert.Null(await session.Dequeue().ConfigureAwait(false));
                 await session.Flush().ConfigureAwait(false);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task If_tx_log_grows_too_large_it_will_be_trimmed_while_queue_is_in_operation()
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
@@ -156,16 +151,16 @@ namespace DiskQueue.Tests
                     await session.Dequeue().ConfigureAwait(false);
                 }
 
-                Assert.IsNull(await session.Dequeue());
+                Assert.Null(await session.Dequeue().ConfigureAwait(false));
 
                 await session.Flush().ConfigureAwait(false);
             }
 
             txLogInfo.Refresh();
-            Assert.Less(txLogInfo.Length, txSizeWhenOpen);
+            Assert.True(txLogInfo.Length < txSizeWhenOpen);
         }
 
-        [Test]
+        [Fact]
         public async Task Truncated_transaction_is_ignored_with_default_settings()
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
@@ -193,15 +188,15 @@ namespace DiskQueue.Tests
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 19; j++)
                 {
-                    Assert.AreEqual(j, BitConverter.ToInt32(await session.Dequeue().ConfigureAwait(false), 0));
+                    Assert.Equal(j, BitConverter.ToInt32(await session.Dequeue().ConfigureAwait(false), 0));
                 }
 
-                Assert.IsNull(await session.Dequeue()); // the last transaction was corrupted
+                Assert.Null(await session.Dequeue().ConfigureAwait(false)); // the last transaction was corrupted
                 await session.Flush().ConfigureAwait(false);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task Can_handle_truncated_start_transaction_separator()
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
@@ -226,12 +221,12 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                Assert.IsNull(await session.Dequeue()); // the last transaction was corrupted
+                Assert.Null(await session.Dequeue().ConfigureAwait(false)); // the last transaction was corrupted
                 await session.Flush().ConfigureAwait(false);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task Can_handle_truncated_data()
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
@@ -256,12 +251,12 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                Assert.IsNull(await session.Dequeue()); // the last transaction was corrupted
+                Assert.Null(await session.Dequeue().ConfigureAwait(false)); // the last transaction was corrupted
                 await session.Flush().ConfigureAwait(false);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task Can_handle_truncated_end_transaction_separator()
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
@@ -286,12 +281,12 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                Assert.IsNull(await session.Dequeue()); // the last transaction was corrupted
+                Assert.Null(await session.Dequeue().ConfigureAwait(false)); // the last transaction was corrupted
                 await session.Flush().ConfigureAwait(false);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task Can_handle_transaction_with_only_zero_length_entries()
         {
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
@@ -310,15 +305,15 @@ namespace DiskQueue.Tests
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 20; j++)
                 {
-                    Assert.IsEmpty(await session.Dequeue());
+                    Assert.Empty(await session.Dequeue().ConfigureAwait(false));
                 }
 
-                Assert.IsNull(await session.Dequeue());
+                Assert.Null(await session.Dequeue().ConfigureAwait(false));
                 await session.Flush().ConfigureAwait(false);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task Can_handle_end_separator_used_as_data()
         {
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
@@ -337,12 +332,12 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                Assert.AreEqual(Constants.EndTransactionSeparator.ToArray(), await session.Dequeue());
+                Assert.Equal(Constants.EndTransactionSeparator.ToArray(), await session.Dequeue().ConfigureAwait(false));
                 await session.Flush().ConfigureAwait(false);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task Can_handle_start_separator_used_as_data()
         {
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
@@ -361,12 +356,12 @@ namespace DiskQueue.Tests
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
-                Assert.AreEqual(Constants.StartTransactionSeparator.ToArray(), await session.Dequeue());
+                Assert.Equal(Constants.StartTransactionSeparator.ToArray(), await session.Dequeue().ConfigureAwait(false));
                 await session.Flush().ConfigureAwait(false);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task Can_handle_zero_length_entries_at_start()
         {
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false)
@@ -387,14 +382,14 @@ namespace DiskQueue.Tests
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 20; j++)
                 {
-                    Assert.IsNotNull(await session.Dequeue());
+                    Assert.NotNull(await session.Dequeue().ConfigureAwait(false));
                     await session.Flush().ConfigureAwait(false);
                 }
             }
         }
 
 
-        [Test]
+        [Fact]
         public async Task Can_handle_zero_length_entries_at_end()
         {
             await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), trimTransactionLogOnDispose: false).ConfigureAwait(false))
@@ -415,13 +410,13 @@ namespace DiskQueue.Tests
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 20; j++)
                 {
-                    Assert.IsNotNull(await session.Dequeue());
+                    Assert.NotNull(await session.Dequeue().ConfigureAwait(false));
                     await session.Flush().ConfigureAwait(false);
                 }
             }
         }
 
-        [Test]
+        [Fact]
         public async Task Can_restore_data_when_a_transaction_set_is_partially_truncated()
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
@@ -451,15 +446,15 @@ namespace DiskQueue.Tests
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 10; j++)
                 {
-                    Assert.IsEmpty(await session.Dequeue());
+                    Assert.Empty(await session.Dequeue().ConfigureAwait(false));
                 }
 
-                Assert.IsNull(await session.Dequeue());
+                Assert.Null(await session.Dequeue().ConfigureAwait(false));
                 await session.Flush().ConfigureAwait(false);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task
             Can_restore_data_when_a_transaction_set_is_partially_overwritten_when_throwOnConflict_is_false()
         {
@@ -491,15 +486,15 @@ namespace DiskQueue.Tests
                 using var session = queue.OpenSession();
                 for (var j = 0; j < 5; j++) // first 5 should be OK
                 {
-                    Assert.IsNotNull(await session.Dequeue());
+                    Assert.NotNull(await session.Dequeue().ConfigureAwait(false));
                 }
 
-                Assert.IsNull(await session.Dequeue()); // duplicated 5 should be silently lost.
+                Assert.Null(await session.Dequeue().ConfigureAwait(false)); // duplicated 5 should be silently lost.
                 await session.Flush().ConfigureAwait(false);
             }
         }
 
-        [Test]
+        [Fact]
         public async Task Will_remove_truncated_transaction()
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
@@ -525,10 +520,10 @@ namespace DiskQueue.Tests
 
             txLogInfo.Refresh();
 
-            Assert.AreEqual(36, txLogInfo.Length); //empty transaction size
+            Assert.Equal(36, txLogInfo.Length); //empty transaction size
         }
 
-        [Test]
+        [Fact]
         public async Task Truncated_transaction_is_ignored_and_can_continue_to_add_items_to_queue()
         {
             var txLogInfo = new FileInfo(System.IO.Path.Combine(Path, "transaction.log"));
@@ -584,7 +579,7 @@ namespace DiskQueue.Tests
                     continue;
                 }
 
-                Assert.AreEqual(expected, data[i]);
+                Assert.Equal(expected, data[i]);
                 expected++;
             }
         }
