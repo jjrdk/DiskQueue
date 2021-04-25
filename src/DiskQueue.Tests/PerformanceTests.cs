@@ -13,11 +13,12 @@ namespace DiskQueue.Tests
     public class PerformanceTests : PersistentQueueTestsBase
     {
         [Fact,
-         Description(
-             "With a mid-range SSD, this is some 20x slower than with a single flush (depends on disk speed)")]
+         Description("With a mid-range SSD, this is some 20x slower than with a single flush (depends on disk speed)")]
         public async Task Enqueue_million_items_with_100_flushes()
         {
-            await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), paranoidFlushing: false).ConfigureAwait(false);
+            await using var queue = await PersistentQueue
+                .Create(Path, Substitute.For<ILoggerFactory>(), paranoidFlushing: false)
+                .ConfigureAwait(false);
             for (var i = 0; i < 100; i++)
             {
                 using var session = queue.OpenSession();
@@ -33,7 +34,9 @@ namespace DiskQueue.Tests
         [Fact]
         public async Task Enqueue_million_items_with_single_flush()
         {
-            await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), paranoidFlushing: false).ConfigureAwait(false);
+            await using var queue = await PersistentQueue
+                .Create(Path, Substitute.For<ILoggerFactory>(), paranoidFlushing: false)
+                .ConfigureAwait(false);
             using var session = queue.OpenSession();
             for (var i = 0; i < LargeCount; i++)
             {
@@ -46,7 +49,9 @@ namespace DiskQueue.Tests
         [Fact]
         public async Task Enqueue_and_dequeue_million_items_same_queue()
         {
-            await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>(), paranoidFlushing: false).ConfigureAwait(false);
+            await using var queue = await PersistentQueue
+                .Create(Path, Substitute.For<ILoggerFactory>(), paranoidFlushing: false)
+                .ConfigureAwait(false);
             using (var session = queue.OpenSession())
             {
                 for (var i = 0; i < LargeCount; i++)
@@ -71,7 +76,8 @@ namespace DiskQueue.Tests
         [Fact]
         public async Task Enqueue_and_dequeue_million_items_restart_queue()
         {
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
+            await using (var queue =
+                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var i = 0; i < LargeCount; i++)
@@ -82,7 +88,8 @@ namespace DiskQueue.Tests
                 await session.Flush().ConfigureAwait(false);
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
+            await using (var queue =
+                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var i = 0; i < LargeCount; i++)
@@ -99,7 +106,8 @@ namespace DiskQueue.Tests
         {
             var random = new Random();
             var itemsSizes = new List<int>();
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
+            await using (var queue =
+                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var i = 0; i < SmallCount; i++)
@@ -112,7 +120,8 @@ namespace DiskQueue.Tests
                 await session.Flush().ConfigureAwait(false);
             }
 
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
+            await using (var queue =
+                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
                 for (var i = 0; i < SmallCount; i++)
