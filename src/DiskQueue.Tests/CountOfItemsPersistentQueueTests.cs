@@ -12,7 +12,7 @@ namespace DiskQueue.Tests
         public async Task Can_get_count_from_queue()
         {
             await using var queue =
-                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+                await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
             Assert.Equal(0, ((IPersistentQueueStore) queue).EstimatedCountOfItemsInQueue);
         }
 
@@ -20,7 +20,7 @@ namespace DiskQueue.Tests
         public async Task Can_enter_items_and_get_count_of_items()
         {
             await using var queue =
-                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+                await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
             for (byte i = 0; i < 5; i++)
             {
                 using var session = queue.OpenSession();
@@ -36,7 +36,7 @@ namespace DiskQueue.Tests
         public async Task Can_get_count_of_items_after_queue_restart()
         {
             await using (var queue =
-                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
+                await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
             {
                 for (byte i = 0; i < 5; i++)
                 {
@@ -47,7 +47,7 @@ namespace DiskQueue.Tests
             }
 
             await using (var queue =
-                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
+                await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
             {
                 Assert.Equal(5, ((IPersistentQueueStore) queue).EstimatedCountOfItemsInQueue);
             }

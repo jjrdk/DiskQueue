@@ -11,7 +11,7 @@
         private readonly IPersistentQueue queue;
         private readonly int retryCount;
         private CancellationTokenSource tokenSource;
-        private readonly List<IObserver<byte[]>> subscribers = new List<IObserver<byte[]>>();
+        private readonly List<IObserver<byte[]>> subscribers = new();
         private Task work;
 
         public PersistentBuffer(IPersistentQueue queue, int retryCount)

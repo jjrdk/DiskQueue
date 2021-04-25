@@ -16,7 +16,7 @@
         public LongTermDequeueTests()
         {
             _source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            _q = PersistentQueue.Create("./queue", Substitute.For<ILoggerFactory>(), cancellationToken: _source.Token)
+            _q = PersistentQueue.Create("./queue", Substitute.For<ILogger<IPersistentQueue>>(), cancellationToken: _source.Token)
                 .GetAwaiter()
                 .GetResult();
         }

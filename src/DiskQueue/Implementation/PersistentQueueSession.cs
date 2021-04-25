@@ -16,15 +16,15 @@ namespace AsyncDiskQueue.Implementation
     internal sealed class PersistentQueueSession : IPersistentQueueSession
     {
         private readonly SymmetricAlgorithm symmetricAlgorithm;
-        private readonly ILogger<IPersistentQueueSession> logger;
-        private readonly List<Operation> operations = new List<Operation>();
+        private readonly ILogger logger;
+        private readonly List<Operation> operations = new();
         private Stream currentStream;
         private readonly int writeBufferSize;
         private readonly IPersistentQueueStore queue;
-        private readonly List<Stream> streamsToDisposeOnFlush = new List<Stream>();
-        private static readonly object CtorLock = new object();
+        private readonly List<Stream> streamsToDisposeOnFlush = new();
+        private static readonly object CtorLock = new();
         private volatile bool disposed;
-        private readonly List<ReadOnlyMemory<byte>> buffer = new List<ReadOnlyMemory<byte>>();
+        private readonly List<ReadOnlyMemory<byte>> buffer = new();
         private int bufferSize;
         private const int MinSizeThatMakeAsyncWritePractical = 64 * 1024;
 
@@ -38,7 +38,7 @@ namespace AsyncDiskQueue.Implementation
             Stream currentStream,
             int writeBufferSize,
             SymmetricAlgorithm symmetricAlgorithm,
-            ILogger<IPersistentQueueSession> logger)
+            ILogger logger)
         {
             this.symmetricAlgorithm = symmetricAlgorithm;
             this.logger = logger;

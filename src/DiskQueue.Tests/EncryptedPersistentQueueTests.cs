@@ -17,7 +17,7 @@ namespace DiskQueue.Tests
             using var algo = CreateAlgo();
             await using var queue = await PersistentQueue.Create(
                     Path,
-                    Substitute.For<ILoggerFactory>(),
+                    Substitute.For<ILogger<IPersistentQueue>>(),
                     paranoidFlushing: false,
                     symmetricAlgorithm: algo)
                 .ConfigureAwait(false);
@@ -47,7 +47,7 @@ namespace DiskQueue.Tests
         {
             using var algo = CreateAlgo();
             await using var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), symmetricAlgorithm: algo)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), symmetricAlgorithm: algo)
                 .ConfigureAwait(false);
             using var session = queue.OpenSession();
             Assert.Null(await session.Dequeue().ConfigureAwait(false));
@@ -58,20 +58,20 @@ namespace DiskQueue.Tests
         {
             using var algo = CreateAlgo();
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), symmetricAlgorithm: algo)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), symmetricAlgorithm: algo)
                 .ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
-                await session.Enqueue(new byte[] {1, 2, 3, 4}).ConfigureAwait(false);
+                await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
                 await session.Flush().ConfigureAwait(false);
             }
 
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), symmetricAlgorithm: algo)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), symmetricAlgorithm: algo)
                 .ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
-                Assert.Equal<byte>(new byte[] {1, 2, 3, 4}, await session.Dequeue().ConfigureAwait(false));
+                Assert.Equal<byte>(new byte[] { 1, 2, 3, 4 }, await session.Dequeue().ConfigureAwait(false));
                 await session.Flush().ConfigureAwait(false);
             }
         }

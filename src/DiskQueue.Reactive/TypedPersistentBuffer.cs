@@ -9,7 +9,7 @@ namespace AsyncDiskQueue.Reactive
         private readonly PersistentBuffer innerBuffer;
         private readonly Func<T, byte[]> serializer;
         private readonly Func<byte[], T> deserializer;
-        private readonly List<IObserver<byte[]>> observers = new List<IObserver<byte[]>>();
+        private readonly List<IObserver<byte[]>> observers = new();
 
         public TypedPersistentBuffer(PersistentBuffer innerBuffer, Func<T, byte[]> serializer, Func<byte[], T> deserializer)
         {

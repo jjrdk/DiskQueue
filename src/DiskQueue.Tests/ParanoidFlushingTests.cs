@@ -15,7 +15,7 @@
         public async Task Paranoid_flushing_still_respects_session_rollback()
         {
             await using var queue = await PersistentQueue
-                .Create("./queue", Substitute.For<ILoggerFactory>(), paranoidFlushing: true)
+                .Create("./queue", Substitute.For<ILogger<IPersistentQueue>>(), paranoidFlushing: true)
                 .ConfigureAwait(false);
 
             // Flush only `_one`

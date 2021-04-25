@@ -60,7 +60,7 @@ namespace DiskQueue.Tests
         [Fact]
         public async Task If_data_stream_is_truncated_will_raise_error()
         {
-            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false))
+            await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
@@ -75,7 +75,7 @@ namespace DiskQueue.Tests
             var invalidOperationException = await Assert.ThrowsAsync<InvalidOperationException>(
              async () =>
                 {
-                    await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+                    await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
                     using var session = queue.OpenSession();
                     await session.Dequeue().ConfigureAwait(false);
                 }).ConfigureAwait(false);

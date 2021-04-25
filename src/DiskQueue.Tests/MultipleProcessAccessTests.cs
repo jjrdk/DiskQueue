@@ -60,7 +60,7 @@
             await Task.Delay(150).ConfigureAwait(false);
             await using var queue = await PersistentQueue.Create(
                     SharedStorage,
-                    Substitute.For<ILoggerFactory>(),
+                    Substitute.For<ILogger<IPersistentQueue>>(),
                     TimeSpan.FromSeconds(30))
                 .ConfigureAwait(false);
             using var session = queue.OpenSession();
@@ -73,7 +73,7 @@
             await Task.Delay(150).ConfigureAwait(false);
             await using var queue = await PersistentQueue.Create(
                     SharedStorage,
-                    Substitute.For<ILoggerFactory>(),
+                    Substitute.For<ILogger<IPersistentQueue>>(),
                     TimeSpan.FromSeconds(30))
                 .ConfigureAwait(false);
             using var session = queue.OpenSession();

@@ -13,7 +13,7 @@ namespace DiskQueue.Tests
         public async Task Entering_more_than_count_of_items_will_work()
         {
             await using var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false);
             for (byte i = 0; i < 11; i++)
             {
@@ -29,7 +29,7 @@ namespace DiskQueue.Tests
         public async Task When_creating_more_items_than_allowed_in_first_file_will_create_additional_file()
         {
             await using var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false);
             for (byte i = 0; i < 11; i++)
             {
@@ -45,7 +45,7 @@ namespace DiskQueue.Tests
         public async Task Can_resume_writing_to_second_file_when_restart_queue()
         {
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false))
             {
                 for (byte i = 0; i < 11; i++)
@@ -59,7 +59,7 @@ namespace DiskQueue.Tests
             }
 
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false))
             {
                 for (byte i = 0; i < 2; i++)
@@ -77,7 +77,7 @@ namespace DiskQueue.Tests
         public async Task Can_dequeue_from_all_files()
         {
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false))
             {
                 for (byte i = 0; i < 12; i++)
@@ -91,7 +91,7 @@ namespace DiskQueue.Tests
             }
 
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false))
             {
                 for (byte i = 0; i < 12; i++)
@@ -107,7 +107,7 @@ namespace DiskQueue.Tests
         public async Task Can_dequeue_from_all_files_after_restart()
         {
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false))
             {
                 for (byte i = 0; i < 12; i++)
@@ -121,7 +121,7 @@ namespace DiskQueue.Tests
             }
 
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false))
             {
                 for (byte i = 0; i < 3; i++)
@@ -136,7 +136,7 @@ namespace DiskQueue.Tests
 
 
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false))
             {
                 using var session = queue.OpenSession();
@@ -158,7 +158,7 @@ namespace DiskQueue.Tests
         public async Task After_reading_all_items_from_file_that_is_not_the_active_file_should_delete_file()
         {
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false))
             {
                 for (byte i = 0; i < 12; i++)
@@ -172,7 +172,7 @@ namespace DiskQueue.Tests
             }
 
             await using (var queue = await PersistentQueue
-                .Create(Path, Substitute.For<ILoggerFactory>(), maxFileSize: 10)
+                .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), maxFileSize: 10)
                 .ConfigureAwait(false))
             {
                 for (byte i = 0; i < 12; i++)

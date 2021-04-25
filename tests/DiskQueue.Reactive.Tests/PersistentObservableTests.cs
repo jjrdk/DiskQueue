@@ -20,7 +20,7 @@ namespace DiskQueue.Reactive.Tests
             rnd.NextBytes(content);
             await using var queue = await PersistentQueue.Create(
                     Path,
-                    Substitute.For<ILoggerFactory>(),
+                    Substitute.For<ILogger<IPersistentQueue>>(),
                     2 * 1024 * 1024,
                     paranoidFlushing: false)
                 .ConfigureAwait(false);
@@ -55,7 +55,7 @@ namespace DiskQueue.Reactive.Tests
         public async Task SimpleObserverTest()
         {
             await using var queue =
-                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+                await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] {1, 2, 3}).ConfigureAwait(false);
@@ -80,7 +80,7 @@ namespace DiskQueue.Reactive.Tests
         public async Task WhenObserverCrashesMoreThanRetryThenObservesError()
         {
             await using var queue =
-                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+                await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] {1, 2, 3}).ConfigureAwait(false);
@@ -104,7 +104,7 @@ namespace DiskQueue.Reactive.Tests
         public async Task WhenObserverCrashesLessThanRetryThenCompletes()
         {
             await using var queue =
-                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+                await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
             using (var session = queue.OpenSession())
             {
                 await session.Enqueue(new byte[] {1, 2, 3}).ConfigureAwait(false);
@@ -129,7 +129,7 @@ namespace DiskQueue.Reactive.Tests
         public async Task WhenObservingEmptyQueueThenCompletes()
         {
             await using var queue =
-                await PersistentQueue.Create(Path, Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+                await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
 
             var observable = new PersistentBuffer(queue, 10);
             var waitHandle = new ManualResetEventSlim(false);

@@ -51,7 +51,7 @@ namespace AsyncDiskQueue.Implementation
 	/// </summary>
 	internal static class Atomic
 	{
-		static readonly object _lock = new object();
+		static readonly object _lock = new();
 
 		/// <summary>
 		/// Run a read action over a file by name.

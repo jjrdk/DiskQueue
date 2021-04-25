@@ -18,7 +18,7 @@
             const int target = 100;
             var rnd = new Random(DateTimeOffset.Now.Millisecond);
 
-            var subject = await PersistentQueue.Create("queue_a", Substitute.For<ILoggerFactory>()).ConfigureAwait(false);
+            var subject = await PersistentQueue.Create("queue_a", Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
             var t1 = Task.Run(
                 async () =>
                 {
@@ -65,7 +65,7 @@
                 {
                     for (var i = 0; i < target; i++)
                     {
-                        await using var subject = await PersistentQueue.Create("queue_b", Substitute.For<ILoggerFactory>(), TimeSpan.FromSeconds(10))
+                        await using var subject = await PersistentQueue.Create("queue_b", Substitute.For<ILogger<IPersistentQueue>>(), TimeSpan.FromSeconds(10))
                             .ConfigureAwait(false);
                         using var session = subject.OpenSession();
                         await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
@@ -80,12 +80,12 @@
                     {
                         using var source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                         var subject = await PersistentQueue
-                            .Create("queue_b", Substitute.For<ILoggerFactory>(), cancellationToken: source.Token)
+                            .Create("queue_b", Substitute.For<ILogger<IPersistentQueue>>(), cancellationToken: source.Token)
                             .ConfigureAwait(false);
                         using var session = subject.OpenSession();
                         await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
                         Interlocked.Increment(ref t2S);
-                        await session.Flush().ConfigureAwait(false);
+                        await session.Flush(source.Token).ConfigureAwait(false);
                         await subject.DisposeAsync().ConfigureAwait(false);
                     }
                 });

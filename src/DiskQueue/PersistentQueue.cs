@@ -41,20 +41,20 @@ namespace AsyncDiskQueue
     /// </summary>
     public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
     {
-        private readonly SemaphoreSlim entriesSemaphore = new SemaphoreSlim(1);
-        private readonly SemaphoreSlim writerSemaphore = new SemaphoreSlim(1);
-        private readonly SemaphoreSlim transactionLogSemaphore = new SemaphoreSlim(1);
-        private readonly HashSet<Entry> checkedOutEntries = new HashSet<Entry>();
-        private readonly Dictionary<int, int> countOfItemsPerFile = new Dictionary<int, int>();
-        private readonly LinkedList<Entry> entries = new LinkedList<Entry>();
+        private readonly SemaphoreSlim entriesSemaphore = new(1);
+        private readonly SemaphoreSlim writerSemaphore = new(1);
+        private readonly SemaphoreSlim transactionLogSemaphore = new(1);
+        private readonly HashSet<Entry> checkedOutEntries = new();
+        private readonly Dictionary<int, int> countOfItemsPerFile = new();
+        private readonly LinkedList<Entry> entries = new();
         private readonly string path;
         private readonly bool throwOnConflict;
-        private static readonly SemaphoreSlim ConfigSemaphore = new SemaphoreSlim(1);
-        private static readonly object ConfigLock = new object();
+        private static readonly SemaphoreSlim ConfigSemaphore = new(1);
+        private static readonly object ConfigLock = new();
         private volatile bool disposed;
         private FileStream fileLock;
         private readonly SymmetricAlgorithm symmetricAlgorithm;
-        private readonly ILoggerFactory loggerFactory;
+        //private readonly ILoggerFactory loggerFactory;
         private readonly ILogger<IPersistentQueue> logger;
         private readonly bool trimTransactionLogOnDispose;
         private readonly int suggestedReadBuffer;
@@ -75,7 +75,7 @@ namespace AsyncDiskQueue
             int suggestedReadBuffer,
             int suggestedWriteBuffer,
             SymmetricAlgorithm symmetricAlgorithm,
-            ILoggerFactory loggerFactory)
+            ILogger<IPersistentQueue> logger)
         {
             if (path == null)
             {
@@ -84,8 +84,7 @@ namespace AsyncDiskQueue
 
             this.trimTransactionLogOnDispose = trimTransactionLogOnDispose;
             this.symmetricAlgorithm = symmetricAlgorithm;
-            this.loggerFactory = loggerFactory;
-            this.logger = loggerFactory.CreateLogger<IPersistentQueue>();
+            this.logger = logger;
             lock (ConfigLock)
             {
                 disposed = true;
@@ -125,7 +124,7 @@ namespace AsyncDiskQueue
         /// Creates a new instance of a persistent queue.
         /// </summary>
         /// <param name="path">The storage path for queue files.</param>
-        /// <param name="loggerFactory">The logger.</param>
+        /// <param name="logger">The logger.</param>
         /// <param name="maxWait">The max wait time to create the queue.</param>
         /// <param name="maxFileSize">The max size for data files.</param>
         /// <param name="throwOnConflict">Throw on file conflicts.</param>
@@ -138,7 +137,7 @@ namespace AsyncDiskQueue
         /// <returns>An <see cref="IPersistentQueue"/> as an async operation.</returns>
         public static Task<IPersistentQueue> Create(
             string path,
-            ILoggerFactory loggerFactory,
+            ILogger<IPersistentQueue> logger,
             TimeSpan maxWait,
             int maxFileSize = Constants._32Megabytes,
             bool throwOnConflict = true,
@@ -152,7 +151,7 @@ namespace AsyncDiskQueue
             using var source = new CancellationTokenSource(maxWait);
             return Create(
                 path,
-                loggerFactory,
+                logger,
                 maxFileSize: maxFileSize,
                 throwOnConflict: throwOnConflict,
                 suggestedMaxTransactionLogSize: suggestedMaxTransactionLogSize,
@@ -168,7 +167,7 @@ namespace AsyncDiskQueue
         /// Creates a new instance of a persistent queue.
         /// </summary>
         /// <param name="path">The storage path for queue files.</param>
-        /// <param name="loggerFactory">The logger.</param>
+        /// <param name="logger">The logger.</param>
         /// <param name="maxFileSize">The max size for data files.</param>
         /// <param name="throwOnConflict">Throw on file conflicts.</param>
         /// <param name="suggestedMaxTransactionLogSize">The suggested transaction log size.</param>
@@ -181,7 +180,7 @@ namespace AsyncDiskQueue
         /// <returns>An <see cref="IPersistentQueue"/> as an async operation.</returns>
         public static async Task<IPersistentQueue> Create(
             string path,
-            ILoggerFactory loggerFactory,
+            ILogger<IPersistentQueue> logger,
             int maxFileSize = Constants._32Megabytes,
             bool throwOnConflict = true,
             int suggestedMaxTransactionLogSize = Constants._32Megabytes,
@@ -192,7 +191,6 @@ namespace AsyncDiskQueue
             SymmetricAlgorithm symmetricAlgorithm = null,
             CancellationToken cancellationToken = default)
         {
-            var logger = loggerFactory.CreateLogger<IPersistentQueue>();
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -211,7 +209,7 @@ namespace AsyncDiskQueue
                             suggestedReadBuffer,
                             suggestedWriteBuffer,
                             symmetricAlgorithm,
-                            loggerFactory);
+                            logger);
 
                         try
                         {
@@ -327,11 +325,20 @@ namespace AsyncDiskQueue
             }
         }
 
-        private string TransactionLog => Path.Combine(path, "transaction.log");
+        private string TransactionLog
+        {
+            get { return Path.Combine(path, "transaction.log"); }
+        }
 
-        private string Meta => Path.Combine(path, "meta.state");
+        private string Meta
+        {
+            get { return Path.Combine(path, "meta.state"); }
+        }
 
-        int IPersistentQueueStore.CurrentFileNumber => currentFileNumber;
+        int IPersistentQueueStore.CurrentFileNumber
+        {
+            get { return currentFileNumber; }
+        }
 
         /// <inheritdoc />
         public async ValueTask DisposeAsync()
@@ -500,10 +507,9 @@ namespace AsyncDiskQueue
                 entries.RemoveFirst();
                 // we need to create a copy so we will not hold the data
                 // in memory as well as the position
-                lock (checkedOutEntries)
-                {
-                    checkedOutEntries.Add(new Entry(entry.FileNumber, entry.Start, entry.Length));
-                }
+
+                checkedOutEntries.Add(new Entry(entry.FileNumber, entry.Start, entry.Length));
+
                 return entry;
             }
             finally
@@ -518,7 +524,7 @@ namespace AsyncDiskQueue
         private async Task ReadAhead()
         {
             long currentBufferSize = 0;
-            var firstEntry = entries.First.Value;
+            var firstEntry = entries.First!.Value;
             var lastEntry = firstEntry;
             foreach (var entry in entries)
             {
@@ -596,7 +602,7 @@ namespace AsyncDiskQueue
         IPersistentQueueSession IPersistentQueue.OpenSession()
         {
             logger.LogInformation("Opening session");
-            return new PersistentQueueSession(this, CreateWriter(), suggestedWriteBuffer, symmetricAlgorithm, loggerFactory.CreateLogger<IPersistentQueueSession>());
+            return new PersistentQueueSession(this, CreateWriter(), suggestedWriteBuffer, symmetricAlgorithm, logger);
         }
 
         void IPersistentQueueStore.Reinstate(IEnumerable<Operation> reinstatedOperations)
