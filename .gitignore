@@ -33,3 +33,4 @@ build
 *.ncrunchproject
 *.ncrunchsolution.user
 *ncrunch*
+.idea
