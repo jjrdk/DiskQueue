@@ -24,62 +24,61 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-namespace AsyncDiskQueue.Implementation
+namespace AsyncDiskQueue.Implementation;
+
+using System;
+using System.Text;
+
+/// <summary>
+/// Exception thrown when data can't be persisted
+/// </summary>
+internal class PendingWriteException : Exception
 {
-    using System;
-    using System.Text;
+    private readonly Exception[] pendingWritesExceptions;
 
     /// <summary>
-    /// Exception thrown when data can't be persisted
+    /// Aggregate causing exceptions
     /// </summary>
-    internal class PendingWriteException : Exception
+    public PendingWriteException(Exception[] pendingWritesExceptions)
+        : base("Error during pending writes")
     {
-        private readonly Exception[] pendingWritesExceptions;
+        this.pendingWritesExceptions = pendingWritesExceptions;
+    }
 
-        /// <summary>
-        /// Aggregate causing exceptions
-        /// </summary>
-        public PendingWriteException(Exception[] pendingWritesExceptions)
-            : base("Error during pending writes")
-        {
-            this.pendingWritesExceptions = pendingWritesExceptions;
-        }
+    /// <summary>
+    /// Set of causing exceptions
+    /// </summary>
+    public Exception[] PendingWritesExceptions
+    {
+        get { return pendingWritesExceptions; }
+    }
 
-        /// <summary>
-        /// Set of causing exceptions
-        /// </summary>
-        public Exception[] PendingWritesExceptions
-        {
-            get { return pendingWritesExceptions; }
-        }
-
-        /// <summary>
-        /// Gets a message that describes the current exception.
-        /// </summary>
-        public override string Message
-        {
-            get
-            {
-                var sb = new StringBuilder(base.Message).Append(':');
-                foreach (var exception in pendingWritesExceptions)
-                {
-                    sb.AppendLine().Append(" - ").Append(exception.Message);
-                }
-                return sb.ToString();
-            }
-        }
-
-        /// <summary>
-        /// Creates and returns a string representation of the current exception.
-        /// </summary>
-        public override string ToString()
+    /// <summary>
+    /// Gets a message that describes the current exception.
+    /// </summary>
+    public override string Message
+    {
+        get
         {
             var sb = new StringBuilder(base.Message).Append(':');
             foreach (var exception in pendingWritesExceptions)
             {
-                sb.AppendLine().Append(" - ").Append(exception);
+                sb.AppendLine().Append(" - ").Append(exception.Message);
             }
             return sb.ToString();
         }
+    }
+
+    /// <summary>
+    /// Creates and returns a string representation of the current exception.
+    /// </summary>
+    public override string ToString()
+    {
+        var sb = new StringBuilder(base.Message).Append(':');
+        foreach (var exception in pendingWritesExceptions)
+        {
+            sb.AppendLine().Append(" - ").Append(exception);
+        }
+        return sb.ToString();
     }
 }

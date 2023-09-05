@@ -1,47 +1,46 @@
-namespace DiskQueue.Reactive.Tests
+namespace DiskQueue.Reactive.Tests;
+
+using System;
+using System.IO;
+
+public abstract class QueueObservableTestBase : IDisposable
 {
-    using System;
-    using System.IO;
+    protected const string Path = @"./queue_rx";
+    static readonly object _lock = new();
 
-    public abstract class QueueObservableTestBase : IDisposable
+    public void Dispose()
     {
-        protected const string Path = @"./queue_rx";
-        static readonly object _lock = new();
-
-        public void Dispose()
+        lock (_lock)
         {
-            lock (_lock)
+            for (int i = 0; i < 10; i++)
             {
-                for (int i = 0; i < 10; i++)
+                try
                 {
-                    try
+                    if (Directory.Exists(Path))
                     {
-                        if (Directory.Exists(Path))
+                        var files = Directory.GetFiles(Path, "*", SearchOption.AllDirectories);
+                        Array.Sort(files, (s1, s2) => s2.Length.CompareTo(s1.Length)); // sort by length descending
+                        foreach (var file in files)
                         {
-                            var files = Directory.GetFiles(Path, "*", SearchOption.AllDirectories);
-                            Array.Sort(files, (s1, s2) => s2.Length.CompareTo(s1.Length)); // sort by length descending
-                            foreach (var file in files)
+                            try
                             {
-                                try
-                                {
-                                    File.Delete(file);
-                                }
-                                catch { }
+                                File.Delete(file);
                             }
-
-                            Directory.Delete(Path, true);
-                            break;
+                            catch { }
                         }
-                    }
-                    catch (AggregateException) { }
-                    catch (UnauthorizedAccessException)
-                    {
-                        Console.WriteLine("Not allowed to delete queue directory. May fail later");
+
+                        Directory.Delete(Path, true);
+                        break;
                     }
                 }
+                catch (AggregateException) { }
+                catch (UnauthorizedAccessException)
+                {
+                    Console.WriteLine("Not allowed to delete queue directory. May fail later");
+                }
             }
-
-            GC.SuppressFinalize(this);
         }
+
+        GC.SuppressFinalize(this);
     }
 }

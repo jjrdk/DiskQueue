@@ -1,91 +1,90 @@
-﻿namespace AsyncDiskQueue
+﻿namespace AsyncDiskQueue;
+
+using System;
+using System.IO;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using Implementation.CrossPlatform.Unix;
+
+/// <summary>
+/// File permission tools for Windows and Linux
+/// </summary>
+internal static class SetPermissions
 {
-    using System;
-    using System.IO;
-    using System.Security.AccessControl;
-    using System.Security.Principal;
-    using Implementation.CrossPlatform.Unix;
+    /// <summary>
+    /// True if running in a Posix environment, false if Windows or unknown.
+    /// </summary>
+    public static bool RunningUnderPosix
+    {
+        get
+        {
+            var p = (int)Environment.OSVersion.Platform;
+            return (p == 4) || (p == 6) || (p == 128);
+        }
+    }
 
     /// <summary>
-    /// File permission tools for Windows and Linux
+    /// Set read-write access for all users, or throw an exception
+    /// if not possible
     /// </summary>
-    internal static class SetPermissions
+    public static void AllowReadWriteForAll(string path)
     {
-        /// <summary>
-        /// True if running in a Posix environment, false if Windows or unknown.
-        /// </summary>
-        public static bool RunningUnderPosix
-        {
-            get
-            {
-                var p = (int)Environment.OSVersion.Platform;
-                return (p == 4) || (p == 6) || (p == 128);
-            }
-        }
+        if (Directory.Exists(path)) Directory_RWX_all(path);
+        else if (File.Exists(path)) File_RWX_all(path);
+        else throw new UnauthorizedAccessException("Can't access the path \"" + path + "\"");
+    }
 
-        /// <summary>
-        /// Set read-write access for all users, or throw an exception
-        /// if not possible
-        /// </summary>
-        public static void AllowReadWriteForAll(string path)
+    /// <summary>
+    /// Set read-write access for all users, or ignore if not possible
+    /// </summary>
+    public static void TryAllowReadWriteForAll(string path)
+    {
+        try
         {
             if (Directory.Exists(path)) Directory_RWX_all(path);
             else if (File.Exists(path)) File_RWX_all(path);
-            else throw new UnauthorizedAccessException("Can't access the path \"" + path + "\"");
         }
-
-        /// <summary>
-        /// Set read-write access for all users, or ignore if not possible
-        /// </summary>
-        public static void TryAllowReadWriteForAll(string path)
+        catch
         {
-            try
-            {
-                if (Directory.Exists(path)) Directory_RWX_all(path);
-                else if (File.Exists(path)) File_RWX_all(path);
-            }
-            catch
-            {
-                Ignore();
-            }
+            Ignore();
         }
+    }
 
-        static void Ignore() { }
+    static void Ignore() { }
 
-        static void File_RWX_all(string path)
+    static void File_RWX_all(string path)
+    {
+        if (RunningUnderPosix)
         {
-            if (RunningUnderPosix)
-            {
-                UnsafeNativeMethods.chmod(path, UnixFilePermissions.ACCESSPERMS);
-            }
-            else
-            {
+            UnsafeNativeMethods.chmod(path, UnixFilePermissions.ACCESSPERMS);
+        }
+        else
+        {
 #pragma warning disable CA1416 // Validate platform compatibility
-                var fileSecurity = new FileSecurity(path, AccessControlSections.All);
-                var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
-                fileSecurity.SetAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.Modify | FileSystemRights.Synchronize, InheritanceFlags.None, PropagationFlags.None, AccessControlType.Allow));
+            var fileSecurity = new FileSecurity(path, AccessControlSections.All);
+            var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+            fileSecurity.SetAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.Modify | FileSystemRights.Synchronize, InheritanceFlags.None, PropagationFlags.None, AccessControlType.Allow));
 
-                new FileInfo(path).SetAccessControl(fileSecurity);
+            new FileInfo(path).SetAccessControl(fileSecurity);
 #pragma warning restore CA1416 // Validate platform compatibility
-            }
         }
+    }
 
-        static void Directory_RWX_all(string path)
+    static void Directory_RWX_all(string path)
+    {
+        if (RunningUnderPosix)
         {
-            if (RunningUnderPosix)
-            {
-                UnsafeNativeMethods.chmod(path, UnixFilePermissions.ACCESSPERMS);
-            }
-            else
-            {
+            UnsafeNativeMethods.chmod(path, UnixFilePermissions.ACCESSPERMS);
+        }
+        else
+        {
 #pragma warning disable CA1416 // Validate platform compatibility
-                var directorySecurity = new DirectorySecurity(path, AccessControlSections.All);
-                var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
-                directorySecurity.AddAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.Modify | FileSystemRights.Synchronize, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            var directorySecurity = new DirectorySecurity(path, AccessControlSections.All);
+            var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+            directorySecurity.AddAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.Modify | FileSystemRights.Synchronize, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
 
-                new DirectoryInfo(path).SetAccessControl(directorySecurity);
+            new DirectoryInfo(path).SetAccessControl(directorySecurity);
 #pragma warning restore CA1416 // Validate platform compatibility
-            }
         }
     }
 }

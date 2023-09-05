@@ -1,52 +1,51 @@
-namespace DiskQueue.Tests
+namespace DiskQueue.Tests;
+
+using System;
+using System.IO;
+
+public abstract class PersistentQueueTestsBase : IDisposable
 {
-    using System;
-    using System.IO;
+    private const string QueuePath = @"./queue";
+    private readonly object @lock = new();
+    protected readonly string Path;
 
-    public abstract class PersistentQueueTestsBase : IDisposable
+    protected PersistentQueueTestsBase()
     {
-        private const string QueuePath = @"./queue";
-        private readonly object @lock = new();
-        protected readonly string Path;
+        Path = $"{QueuePath}_{Guid.NewGuid():N}";
+        RebuildPath();
+    }
 
-        protected PersistentQueueTestsBase()
-        {
-            Path = $"{QueuePath}_{Guid.NewGuid():N}";
-            RebuildPath();
-        }
+    /// <summary>
+    /// This ensures that we release all files before we complete a test
+    /// </summary>
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+        RebuildPath();
+    }
 
-        /// <summary>
-        /// This ensures that we release all files before we complete a test
-        /// </summary>
-        public void Dispose()
+    private void RebuildPath()
+    {
+        lock (@lock)
         {
-            GC.SuppressFinalize(this);
-            RebuildPath();
-        }
-
-        private void RebuildPath()
-        {
-            lock (@lock)
+            try
             {
-                try
+                if (Directory.Exists(Path))
                 {
-                    if (Directory.Exists(Path))
+                    var files = Directory.GetFiles(Path, "*", SearchOption.AllDirectories);
+                    Array.Sort(files, (s1, s2) => s2.Length.CompareTo(s1.Length)); // sort by length descending
+                    foreach (var file in files)
                     {
-                        var files = Directory.GetFiles(Path, "*", SearchOption.AllDirectories);
-                        Array.Sort(files, (s1, s2) => s2.Length.CompareTo(s1.Length)); // sort by length descending
-                        foreach (var file in files)
-                        {
-                            File.Delete(file);
-                        }
-
-                        Directory.Delete(Path, true);
-
+                        File.Delete(file);
                     }
+
+                    Directory.Delete(Path, true);
+
                 }
-                catch (UnauthorizedAccessException)
-                {
-                    Console.WriteLine("Not allowed to delete queue directory. May fail later");
-                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Console.WriteLine("Not allowed to delete queue directory. May fail later");
             }
         }
     }

@@ -1,11 +1,10 @@
-namespace AsyncDiskQueue.Implementation
-{
-    using System;
+namespace AsyncDiskQueue.Implementation;
 
-    internal class UnableToSetupException : Exception
+using System;
+
+internal class UnableToSetupException : Exception
+{
+    public UnableToSetupException(string message) : base(message)
     {
-        public UnableToSetupException(string message) : base(message)
-        {
-        }
     }
 }

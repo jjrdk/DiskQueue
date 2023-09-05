@@ -1,25 +1,24 @@
-﻿namespace AsyncDiskQueue.Implementation.CrossPlatform.Unix
+﻿namespace AsyncDiskQueue.Implementation.CrossPlatform.Unix;
+
+using System.Runtime.InteropServices;
+
+/// <summary>
+/// Unix calls
+/// </summary>
+public class UnsafeNativeMethods
 {
-    using System.Runtime.InteropServices;
+	[DllImport("libc", EntryPoint = "chmod", SetLastError = true,
+		CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+	static extern int sys_chmod(string path, uint mode);
 
-    /// <summary>
-	/// Unix calls
+	/// <summary>
+	/// "Change Mode" -- sets file permissions in Linux / Unix.
 	/// </summary>
-	public class UnsafeNativeMethods
+	/// <param name="path">Path to set</param>
+	/// <param name="mode">Permissions mode flags</param>
+	/// <returns>System result status</returns>
+	public static int chmod(string path, UnixFilePermissions mode)
 	{
-		[DllImport("libc", EntryPoint = "chmod", SetLastError = true,
-			CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-		static extern int sys_chmod(string path, uint mode);
-
-		/// <summary>
-		/// "Change Mode" -- sets file permissions in Linux / Unix.
-		/// </summary>
-		/// <param name="path">Path to set</param>
-		/// <param name="mode">Permissions mode flags</param>
-		/// <returns>System result status</returns>
-		public static int chmod(string path, UnixFilePermissions mode)
-		{
-			return sys_chmod(path, (uint)mode);
-		} 
-	}
+		return sys_chmod(path, (uint)mode);
+	} 
 }

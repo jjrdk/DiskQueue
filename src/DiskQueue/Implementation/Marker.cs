@@ -1,11 +1,10 @@
-namespace AsyncDiskQueue.Implementation
+namespace AsyncDiskQueue.Implementation;
+
+/// <summary>
+/// List of marker constants
+/// </summary>
+internal enum Marker
 {
-    /// <summary>
-    /// List of marker constants
-    /// </summary>
-    internal enum Marker
-    {
-        StartTransaction = 0,
-        EndTransaction = -1
-    }
+    StartTransaction = 0,
+    EndTransaction = -1
 }

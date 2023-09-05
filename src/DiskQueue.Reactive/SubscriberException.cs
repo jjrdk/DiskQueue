@@ -1,11 +1,10 @@
-﻿namespace AsyncDiskQueue.Reactive
-{
-    using System;
+﻿namespace AsyncDiskQueue.Reactive;
 
-    internal class SubscriberException : Exception
+using System;
+
+internal class SubscriberException : Exception
+{
+    public SubscriberException() : base("Subscriber error")
     {
-        public SubscriberException() : base("Subscriber error")
-        {
-        }
     }
 }
