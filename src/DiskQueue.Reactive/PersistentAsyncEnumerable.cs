@@ -24,16 +24,5 @@
                 yield return content;
             }
         }
-
-        public static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(
-            this IPersistentQueueSession session,
-            Func<byte[], T> deserializer,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            await foreach (var item in session.ToAsyncEnumerable(cancellationToken))
-            {
-                yield return deserializer(item);
-            }
-        }
     }
 }

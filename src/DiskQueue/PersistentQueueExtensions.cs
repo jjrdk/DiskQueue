@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+
 namespace AsyncDiskQueue
 {
     using System;
@@ -63,6 +66,17 @@ namespace AsyncDiskQueue
             public Task Flush(CancellationToken cancellationToken = default)
             {
                 return rawSession.Flush(cancellationToken);
+            }
+        }
+
+        public static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(
+            this IPersistentQueueSession session,
+            Func<byte[], T> deserializer,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await foreach (var item in session.ToAsyncEnumerable(cancellationToken))
+            {
+                yield return deserializer(item);
             }
         }
     }

@@ -57,6 +57,7 @@
         {
             await Stop().ConfigureAwait(false);
             tokenSource?.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         /// <inheritdoc />
