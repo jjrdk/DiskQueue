@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
+        <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
         <AssemblyName>asyncdiskqueue.reactive</AssemblyName>
         <RootNamespace>AsyncDiskQueue.Reactive</RootNamespace>
         <Authors>Ayende Rahien, IainBallard, Jacob Reimers</Authors>
@@ -15,7 +15,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Polly" Version="7.2.2" />
+        <PackageReference Include="Polly" Version="7.2.4" />
         <ProjectReference Include="..\DiskQueue\DiskQueue.csproj" />
     </ItemGroup>
 
