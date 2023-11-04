@@ -20,22 +20,22 @@ public class AsyncEnumerableTests : PersistentQueueTestsBase
         var items = new List<Guid>();
         using var tokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
         await using (var queue = await PersistentQueue.Create(
-                Path,
-                Substitute.For<ILogger<IPersistentQueue>>(),
-                cancellationToken: tokenSource.Token)
-            .ConfigureAwait(false))
+            Path,
+            Substitute.For<ILogger<PersistentQueue>>(),
+            cancellationToken: tokenSource.Token)
+        )
         {
-            using (var fillSession = queue.OpenSession(g => g.ToByteArray(), b => new Guid(b)))
+            using (var fillSession = queue.OpenSession(g => g.ToByteArray(), b => new Guid(b.Span)))
             {
                 for (var i = 0; i < count; i++)
                 {
-                    await fillSession.Enqueue(Guid.NewGuid(), tokenSource.Token).ConfigureAwait(false);
+                    await fillSession.Enqueue(Guid.NewGuid(), tokenSource.Token);
                 }
 
-                await fillSession.Flush(tokenSource.Token).ConfigureAwait(false);
+                await fillSession.Flush(tokenSource.Token);
             }
 
-            using var session = queue.OpenSession(g => g.ToByteArray(), b => new Guid(b));
+            using var session = queue.OpenSession(g => g.ToByteArray(), b => new Guid(b.Span));
             try
             {
                 await foreach (var g in session.ToAsyncEnumerable(tokenSource.Token))
@@ -57,12 +57,12 @@ public class AsyncEnumerableTests : PersistentQueueTestsBase
         var items = new List<Guid>();
         using var tokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
         await using (var queue = await PersistentQueue.Create(
-                Path,
-                Substitute.For<ILogger<IPersistentQueue>>(),
-                cancellationToken: tokenSource.Token)
-            .ConfigureAwait(false))
+            Path,
+            Substitute.For<ILogger<PersistentQueue>>(),
+            cancellationToken: tokenSource.Token)
+        )
         {
-            using var session = queue.OpenSession(g => g.ToByteArray(), b => new Guid(b));
+            using var session = queue.OpenSession(g => g.ToByteArray(), b => new Guid(b.Span));
             try
             {
                 await foreach (var g in session.ToAsyncEnumerable(tokenSource.Token))
@@ -87,15 +87,15 @@ public class PersistentQueueTests : PersistentQueueTestsBase
         var invalidOperationException = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () =>
                 {
-                    await using (await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>())
-                        .ConfigureAwait(false))
+                    await using (await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>())
+                    )
                     {
                         // ReSharper disable once ObjectCreationAsStatement
-                        _ = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>())
-                            .ConfigureAwait(false);
+                        _ = await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>())
+                            ;
                     }
                 })
-            .ConfigureAwait(false);
+            ;
 
         Assert.Equal(
             "Another instance of the queue is already in action, or directory does not exists",
@@ -107,9 +107,9 @@ public class PersistentQueueTests : PersistentQueueTestsBase
     {
         Directory.CreateDirectory(Path);
         var lockFilePath = System.IO.Path.Combine(Path, "lock");
-        await File.WriteAllTextAsync(lockFilePath, "78924759045").ConfigureAwait(false);
+        await File.WriteAllTextAsync(lockFilePath, "78924759045");
 
-        await using (await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+        await using (await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
         {
         }
     }
@@ -117,8 +117,8 @@ public class PersistentQueueTests : PersistentQueueTestsBase
     [Fact]
     public async Task Can_create_new_queue()
     {
-        await using var q = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>())
-            .ConfigureAwait(false);
+        await using var q = await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>())
+            ;
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class PersistentQueueTests : PersistentQueueTestsBase
 
         Directory.CreateDirectory(Path);
         await File.WriteAllBytesAsync(System.IO.Path.Combine(Path, "transaction.log"), buffer.ToArray())
-            .ConfigureAwait(false);
+            ;
 
         var invalidOperationException = await Assert.ThrowsAsync<UnableToSetupException>(
                 async () =>
@@ -139,11 +139,11 @@ public class PersistentQueueTests : PersistentQueueTestsBase
                     // ReSharper disable once ObjectCreationAsStatement
                     _ = await PersistentQueue.Create(
                             Path,
-                            Substitute.For<ILogger<IPersistentQueue>>(),
+                            Substitute.For<ILogger<PersistentQueue>>(),
                             TimeSpan.FromSeconds(10))
-                        .ConfigureAwait(false);
+                        ;
                 })
-            .ConfigureAwait(false);
+            ;
 
         Assert.Equal(
             "Unexpected data in transaction log. Expected to get transaction separator but got unknown data. Tx #1",
@@ -151,60 +151,60 @@ public class PersistentQueueTests : PersistentQueueTestsBase
     }
 
     [Fact]
-    public async Task Dequeing_from_empty_queue_will_return_null()
+    public async Task Dequeuing_from_empty_queue_will_return_null()
     {
         await using var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>());
         using var session = queue.OpenSession();
-        Assert.Null(await session.Dequeue().ConfigureAwait(false));
+        Assert.True((await session.Dequeue()).IsEmpty);
     }
 
     [Fact]
     public async Task Can_enqueue_data_in_queue()
     {
         await using var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>());
         using var session = queue.OpenSession();
-        await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-        await session.Flush().ConfigureAwait(false);
+        await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+        await session.Flush();
     }
 
     [Fact]
     public async Task Can_dequeue_data_from_queue()
     {
         await using var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>());
         using var session = queue.OpenSession();
-        await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-        await session.Flush().ConfigureAwait(false);
-        Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue().ConfigureAwait(false));
+        await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+        await session.Flush();
+        Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
     }
 
     [Fact]
     public async Task Can_dequeue_data_from_queue_twice_when_read_not_flushed()
     {
         await using var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>());
         using (var session = queue.OpenSession())
         {
-            await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-            await session.Flush().ConfigureAwait(false);
+            await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+            await session.Flush();
         }
 
         using (var session = queue.OpenSession())
         {
-            Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue().ConfigureAwait(false));
+            Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
         }
 
         using (var session = queue.OpenSession())
         {
-            Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue().ConfigureAwait(false));
-            await session.Flush().ConfigureAwait(false);
+            Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
+            await session.Flush();
         }
 
         using (var session = queue.OpenSession())
         {
-            Assert.Null(await session.Dequeue().ConfigureAwait(false));
+            Assert.True((await session.Dequeue()).IsEmpty);
         }
     }
 
@@ -212,19 +212,19 @@ public class PersistentQueueTests : PersistentQueueTestsBase
     public async Task Can_enqueue_and_dequeue_data_after_restarting_queue()
     {
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
+                await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+                await session.Flush();
             }
 
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue().ConfigureAwait(false));
-                await session.Flush().ConfigureAwait(false);
+                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
+                await session.Flush();
             }
     }
 
@@ -232,20 +232,20 @@ public class PersistentQueueTests : PersistentQueueTestsBase
     public async Task After_dequeue_from_queue_item_no_longer_on_queue()
     {
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
+                await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+                await session.Flush();
             }
 
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue().ConfigureAwait(false));
-                Assert.Null(await session.Dequeue().ConfigureAwait(false));
-                await session.Flush().ConfigureAwait(false);
+                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
+                Assert.True((await session.Dequeue()).IsEmpty);
+                await session.Flush();
             }
     }
 
@@ -253,27 +253,27 @@ public class PersistentQueueTests : PersistentQueueTestsBase
     public async Task After_dequeue_from_queue_item_no_longer_on_queue_with_queues_restarts()
     {
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
+                await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+                await session.Flush();
             }
 
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue().ConfigureAwait(false));
-                await session.Flush().ConfigureAwait(false);
+                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
+                await session.Flush();
             }
 
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                Assert.Null(await session.Dequeue().ConfigureAwait(false));
-                await session.Flush().ConfigureAwait(false);
+                Assert.True((await session.Dequeue()).IsEmpty);
+                await session.Flush();
             }
     }
 
@@ -281,27 +281,27 @@ public class PersistentQueueTests : PersistentQueueTestsBase
     public async Task Not_flushing_the_session_will_revert_dequeued_items()
     {
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
+                await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+                await session.Flush();
             }
 
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue().ConfigureAwait(false));
+                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
                 //Explicitly omitted: session.Flush();
             }
 
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue().ConfigureAwait(false));
-                await session.Flush().ConfigureAwait(false);
+                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
+                await session.Flush();
             }
     }
 
@@ -309,25 +309,25 @@ public class PersistentQueueTests : PersistentQueueTestsBase
     public async Task Not_flushing_the_session_will_revert_dequeued_items_two_sessions_same_queue()
     {
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
+                await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+                await session.Flush();
             }
 
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session2 = queue.OpenSession())
             {
                 using (var session1 = queue.OpenSession())
                 {
-                    Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session1.Dequeue().ConfigureAwait(false));
+                    Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session1.Dequeue());
                     //Explicitly omitted: session.Flush();
                 }
 
-                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session2.Dequeue().ConfigureAwait(false));
-                await session2.Flush().ConfigureAwait(false);
+                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session2.Dequeue());
+                await session2.Flush();
             }
     }
 
@@ -335,20 +335,20 @@ public class PersistentQueueTests : PersistentQueueTestsBase
     public async Task Two_sessions_off_the_same_queue_cannot_get_same_item()
     {
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
+                await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+                await session.Flush();
             }
 
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session2 = queue.OpenSession())
                 using (var session1 = queue.OpenSession())
                 {
-                    Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session1.Dequeue().ConfigureAwait(false));
-                    Assert.Null(await session2.Dequeue().ConfigureAwait(false));
+                    Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session1.Dequeue());
+                    Assert.True((await session2.Dequeue()).IsEmpty);
                 }
     }
 
@@ -356,30 +356,30 @@ public class PersistentQueueTests : PersistentQueueTestsBase
     public async Task Items_are_reverted_in_their_original_order()
     {
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                await session.Enqueue(new byte[] { 1 }).ConfigureAwait(false);
-                await session.Enqueue(new byte[] { 2 }).ConfigureAwait(false);
-                await session.Enqueue(new byte[] { 3 }).ConfigureAwait(false);
-                await session.Enqueue(new byte[] { 4 }).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
+                await session.Enqueue(new byte[] { 1 });
+                await session.Enqueue(new byte[] { 2 });
+                await session.Enqueue(new byte[] { 3 });
+                await session.Enqueue(new byte[] { 4 });
+                await session.Flush();
             }
 
         for (var i = 0; i < 4; i++)
         {
-            await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>())
-                .ConfigureAwait(false);
+            await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>())
+                ;
             using var session = queue.OpenSession();
             Assert.Equal(
                 new byte[] { 1 },
-                await session.Dequeue().ConfigureAwait(false));
+                await session.Dequeue());
             Assert.Equal(
                 new byte[] { 2 },
-                await session.Dequeue().ConfigureAwait(false));
+                await session.Dequeue());
             Assert.Equal(
                 new byte[] { 3 },
-                await session.Dequeue().ConfigureAwait(false));
+                await session.Dequeue());
             // Dispose without `session.Flush();`
         }
     }

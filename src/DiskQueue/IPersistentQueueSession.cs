@@ -20,7 +20,7 @@ public interface IPersistentQueueSession : IDisposable
 	/// Try to pull data from the queue. Data is removed from the queue on `Flush()`
 	/// </summary>
 	/// <param name="cancellationToken"></param>
-	Task<byte[]> Dequeue(CancellationToken cancellationToken = default);
+	Task<ReadOnlyMemory<byte>> Dequeue(CancellationToken cancellationToken = default);
 
 	/// <summary>
 	/// Commit actions taken in this session since last flush.

@@ -17,17 +17,17 @@ public class PerformanceTests : PersistentQueueTestsBase
     public async Task Enqueue_million_items_with_100_flushes()
     {
         await using var queue = await PersistentQueue
-            .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), paranoidFlushing: false)
-            .ConfigureAwait(false);
+            .Create(Path, Substitute.For<ILogger<PersistentQueue>>(), paranoidFlushing: false)
+            ;
         for (var i = 0; i < 100; i++)
         {
             using var session = queue.OpenSession();
             for (var j = 0; j < 10000; j++)
             {
-                await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
+                await session.Enqueue(Guid.NewGuid().ToByteArray());
             }
 
-            await session.Flush().ConfigureAwait(false);
+            await session.Flush();
         }
     }
 
@@ -35,41 +35,41 @@ public class PerformanceTests : PersistentQueueTestsBase
     public async Task Enqueue_million_items_with_single_flush()
     {
         await using var queue = await PersistentQueue
-            .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), paranoidFlushing: false)
-            .ConfigureAwait(false);
+            .Create(Path, Substitute.For<ILogger<PersistentQueue>>(), paranoidFlushing: false)
+            ;
         using var session = queue.OpenSession();
         for (var i = 0; i < LargeCount; i++)
         {
-            await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
+            await session.Enqueue(Guid.NewGuid().ToByteArray());
         }
 
-        await session.Flush().ConfigureAwait(false);
+        await session.Flush();
     }
 
     [Fact]
     public async Task Enqueue_and_dequeue_million_items_same_queue()
     {
         await using var queue = await PersistentQueue
-            .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), paranoidFlushing: false)
-            .ConfigureAwait(false);
+            .Create(Path, Substitute.For<ILogger<PersistentQueue>>(), paranoidFlushing: false)
+            ;
         using (var session = queue.OpenSession())
         {
             for (var i = 0; i < LargeCount; i++)
             {
-                await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
+                await session.Enqueue(Guid.NewGuid().ToByteArray());
             }
 
-            await session.Flush().ConfigureAwait(false);
+            await session.Flush();
         }
 
         using (var session = queue.OpenSession())
         {
             for (var i = 0; i < LargeCount; i++)
             {
-                _ = new Guid(await session.Dequeue().ConfigureAwait(false));
+                _ = new Guid((await session.Dequeue()).Span);
             }
 
-            await session.Flush().ConfigureAwait(false);
+            await session.Flush();
         }
     }
 
@@ -77,27 +77,27 @@ public class PerformanceTests : PersistentQueueTestsBase
     public async Task Enqueue_and_dequeue_million_items_restart_queue()
     {
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
         {
             using var session = queue.OpenSession();
             for (var i = 0; i < LargeCount; i++)
             {
-                await session.Enqueue(Guid.NewGuid().ToByteArray()).ConfigureAwait(false);
+                await session.Enqueue(Guid.NewGuid().ToByteArray());
             }
 
-            await session.Flush().ConfigureAwait(false);
+            await session.Flush();
         }
 
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
         {
             using var session = queue.OpenSession();
             for (var i = 0; i < LargeCount; i++)
             {
-                _ = new Guid(await session.Dequeue().ConfigureAwait(false));
+                _ = new Guid((await session.Dequeue()).Span);
             }
 
-            await session.Flush().ConfigureAwait(false);
+            await session.Flush();
         }
     }
 
@@ -107,29 +107,29 @@ public class PerformanceTests : PersistentQueueTestsBase
         var random = new Random();
         var itemsSizes = new List<int>();
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
         {
             using var session = queue.OpenSession();
             for (var i = 0; i < SmallCount; i++)
             {
                 var data = new byte[random.Next(1024 * 512, 1024 * 1024)];
                 itemsSizes.Add(data.Length);
-                await session.Enqueue(data).ConfigureAwait(false);
+                await session.Enqueue(data);
             }
 
-            await session.Flush().ConfigureAwait(false);
+            await session.Flush();
         }
 
         await using (var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
         {
             using var session = queue.OpenSession();
             for (var i = 0; i < SmallCount; i++)
             {
-                Assert.Equal(itemsSizes[i], (await session.Dequeue().ConfigureAwait(false)).Length);
+                Assert.Equal(itemsSizes[i], (await session.Dequeue()).Length);
             }
 
-            await session.Flush().ConfigureAwait(false);
+            await session.Flush();
         }
     }
 

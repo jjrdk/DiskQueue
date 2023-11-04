@@ -20,14 +20,13 @@ public class PersistenEnumerableTests : QueueObservableTestBase
         rnd.NextBytes(content);
         await using var queue = await PersistentQueue.Create(
                 Path,
-                Substitute.For<ILogger<IPersistentQueue>>(),
+                Substitute.For<ILogger<PersistentQueue>>(),
                 2 * 1024 * 1024,
-                paranoidFlushing: false)
-            .ConfigureAwait(false);
+                paranoidFlushing: false);
         using (var session = queue.OpenSession())
         {
-            await session.Enqueue(content).ConfigureAwait(false);
-            await session.Flush().ConfigureAwait(false);
+            await session.Enqueue(content);
+            await session.Flush();
         }
 
         var count = 0;
@@ -40,8 +39,8 @@ public class PersistenEnumerableTests : QueueObservableTestBase
                     break;
                 }
 
-                await session.Enqueue(item).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
+                await session.Enqueue(item);
+                await session.Flush();
             }
         }
 
@@ -55,22 +54,22 @@ public class PersistentObservableTests : QueueObservableTestBase
     public async Task SimpleObserverTest()
     {
         await using var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>());
         using (var session = queue.OpenSession())
         {
-            await session.Enqueue(new byte[] {1, 2, 3}).ConfigureAwait(false);
-            await session.Flush().ConfigureAwait(false);
+            await session.Enqueue(new byte[] {1, 2, 3});
+            await session.Flush();
         }
 
         var observable = new PersistentBuffer(queue, 3);
         var waitHandle = new ManualResetEventSlim(false);
         var observer = new TestSubscriber(waitHandle);
-        ((IObservable<byte[]>) observable).Subscribe(observer);
+        ((IObservable<ReadOnlyMemory<byte>>) observable).Subscribe(observer);
 
         observable.Start();
 
         var success = waitHandle.Wait(TimeSpan.FromSeconds(3));
-        await observable.DisposeAsync().ConfigureAwait(false);
+        await observable.DisposeAsync();
 
         Assert.True(success);
         Assert.NotNull(observer.LastMessage);
@@ -80,70 +79,70 @@ public class PersistentObservableTests : QueueObservableTestBase
     public async Task WhenObserverCrashesMoreThanRetryThenObservesError()
     {
         await using var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>());
         using (var session = queue.OpenSession())
         {
-            await session.Enqueue(new byte[] {1, 2, 3}).ConfigureAwait(false);
-            await session.Flush().ConfigureAwait(false);
+            await session.Enqueue(new byte[] {1, 2, 3});
+            await session.Flush();
         }
 
         var observable = new PersistentBuffer(queue, 1);
         var waitHandle = new ManualResetEventSlim(false);
         var observer = new CrashSubscriber(waitHandle);
-        ((IObservable<byte[]>) observable).Subscribe(observer);
+        ((IObservable<ReadOnlyMemory<byte>>) observable).Subscribe(observer);
 
         observable.Start();
 
         waitHandle.Wait(TimeSpan.FromSeconds(3));
 
         Assert.NotNull(observer.LastError);
-        await observable.DisposeAsync().ConfigureAwait(false);
+        await observable.DisposeAsync();
     }
 
     [Fact]
     public async Task WhenObserverCrashesLessThanRetryThenCompletes()
     {
         await using var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>());
         using (var session = queue.OpenSession())
         {
-            await session.Enqueue(new byte[] {1, 2, 3}).ConfigureAwait(false);
-            await session.Flush().ConfigureAwait(false);
+            await session.Enqueue(new byte[] {1, 2, 3});
+            await session.Flush();
         }
 
         var observable = new PersistentBuffer(queue, 10);
         var waitHandle = new ManualResetEventSlim(false);
         var observer = new CrashSubscriber(waitHandle);
-        ((IObservable<byte[]>) observable).Subscribe(observer);
+        ((IObservable<ReadOnlyMemory<byte>>) observable).Subscribe(observer);
 
         observable.Start();
 
         waitHandle.Wait(TimeSpan.FromSeconds(30));
-        await observable.Stop().ConfigureAwait(false);
+        await observable.Stop();
 
         Assert.True(observer.Completed);
-        await observable.DisposeAsync().ConfigureAwait(false);
+        await observable.DisposeAsync();
     }
 
     [Fact]
     public async Task WhenObservingEmptyQueueThenCompletes()
     {
         await using var queue =
-            await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+            await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>());
 
         var observable = new PersistentBuffer(queue, 10);
         var waitHandle = new ManualResetEventSlim(false);
         var observer = new TestSubscriber(waitHandle);
-        ((IObservable<byte[]>) observable).Subscribe(observer);
+        ((IObservable<ReadOnlyMemory<byte>>) observable).Subscribe(observer);
 
         observable.Start();
 
-        await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
-        await observable.Stop().ConfigureAwait(false);
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        await observable.Stop();
 
         waitHandle.Wait(TimeSpan.FromSeconds(30));
 
         Assert.True(observer.Completed);
-        await observable.DisposeAsync().ConfigureAwait(false);
+        await observable.DisposeAsync();
     }
 }

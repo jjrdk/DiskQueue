@@ -1,7 +1,6 @@
 ﻿namespace DiskQueue.Tests;
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +18,7 @@ public class MultipleProcessAccessTests
        + "the DiskQueue library")]
     public void Can_access_from_multiple_queues_if_used_carefully()
     {
-        var received = new List<byte[]>();
+        var received = 0;
         var numberOfItems = 10;
 
         var waitHandle = new ManualResetEvent(false);
@@ -28,7 +27,7 @@ public class MultipleProcessAccessTests
             {
                 for (var i = 0; i < numberOfItems; i++)
                 {
-                    await AddToQueue(new byte[] {1, 2, 3}).ConfigureAwait(false);
+                    await AddToQueue(new byte[] { 1, 2, 3 });
                 }
 
                 waitHandle.Set();
@@ -40,10 +39,13 @@ public class MultipleProcessAccessTests
         _ = Task.Run(
             async () =>
             {
-                while (received.Count < numberOfItems)
+                while (received < numberOfItems)
                 {
-                    var data = await ReadQueue().ConfigureAwait(false);
-                    if (data != null) received.Add(data);
+                    var data = await ReadQueue();
+                    if (!data.IsEmpty)
+                    {
+                        Interlocked.Increment(ref received);
+                    }
                 }
 
                 waitHandle.Set();
@@ -52,33 +54,33 @@ public class MultipleProcessAccessTests
         var ok = waitHandle.WaitOne();
 
         Assert.True(ok, "Did not receive all data in time");
-        Assert.Equal(numberOfItems, received.Count);
+        Assert.Equal(numberOfItems, received);
     }
 
-    static async Task AddToQueue(byte[] data)
+    private static async Task AddToQueue(byte[] data)
     {
-        await Task.Delay(150).ConfigureAwait(false);
+//        await Task.Delay(150);
         await using var queue = await PersistentQueue.Create(
                 SharedStorage,
-                Substitute.For<ILogger<IPersistentQueue>>(),
+                Substitute.For<ILogger<PersistentQueue>>(),
                 TimeSpan.FromSeconds(30))
-            .ConfigureAwait(false);
+            ;
         using var session = queue.OpenSession();
-        await session.Enqueue(data).ConfigureAwait(false);
-        await session.Flush().ConfigureAwait(false);
+        await session.Enqueue(data);
+        await session.Flush();
     }
 
-    static async Task<byte[]> ReadQueue()
+    private static async Task<ReadOnlyMemory<byte>> ReadQueue()
     {
-        await Task.Delay(150).ConfigureAwait(false);
+//        await Task.Delay(150);
         await using var queue = await PersistentQueue.Create(
                 SharedStorage,
-                Substitute.For<ILogger<IPersistentQueue>>(),
+                Substitute.For<ILogger<PersistentQueue>>(),
                 TimeSpan.FromSeconds(30))
-            .ConfigureAwait(false);
+            ;
         using var session = queue.OpenSession();
-        var data = await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
-        await session.Flush().ConfigureAwait(false);
+        var data = await session.Dequeue(CancellationToken.None);
+        await session.Flush();
         return data;
     }
 

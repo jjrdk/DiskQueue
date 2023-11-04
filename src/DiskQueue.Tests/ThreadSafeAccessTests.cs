@@ -18,17 +18,17 @@ public class ThreadSafeAccessTests
         const int target = 100;
         var rnd = new Random(DateTimeOffset.Now.Millisecond);
 
-        var subject = await PersistentQueue.Create("queue_a", Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+        var subject = await PersistentQueue.Create("queue_a", Substitute.For<ILogger<PersistentQueue>>());
         var t1 = Task.Run(
             async () =>
             {
+                var data = new byte[] { 1, 2, 3, 4 };
                 for (var i = 0; i < target; i++)
                 {
                     using var session = subject.OpenSession();
-                    await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
+                    await session.Enqueue(data);
                     Interlocked.Increment(ref t1S);
-                    Thread.Sleep(rnd.Next(0, 100));
-                    await session.Flush().ConfigureAwait(false);
+                    await session.Flush();
                 }
             });
         var t2 = Task.Run(
@@ -37,18 +37,14 @@ public class ThreadSafeAccessTests
                 for (var i = 0; i < target; i++)
                 {
                     using var session = subject.OpenSession();
-                    await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
+                    await session.Dequeue(CancellationToken.None);
                     Interlocked.Increment(ref t2S);
-                    Thread.Sleep(rnd.Next(0, 100));
-                    await session.Flush().ConfigureAwait(false);
+                    await session.Flush();
                 }
             });
 
-        //t1.Start();
-        //t2.Start();
-
-        await t1.ConfigureAwait(false);
-        await t2.ConfigureAwait(false);
+        await t1;
+        await t2;
         Assert.Equal(target, t1S);
         Assert.Equal(target, t2S);
     }
@@ -65,12 +61,12 @@ public class ThreadSafeAccessTests
             {
                 for (var i = 0; i < target; i++)
                 {
-                    await using var subject = await PersistentQueue.Create("queue_b", Substitute.For<ILogger<IPersistentQueue>>(), TimeSpan.FromSeconds(10))
-                        .ConfigureAwait(false);
+                    await using var subject = await PersistentQueue.Create("queue_b", Substitute.For<ILogger<PersistentQueue>>(), TimeSpan.FromSeconds(10))
+                        ;
                     using var session = subject.OpenSession();
-                    await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
+                    await session.Enqueue(new byte[] { 1, 2, 3, 4 });
                     Interlocked.Increment(ref t1S);
-                    await session.Flush().ConfigureAwait(false);
+                    await session.Flush();
                 }
             });
         var t2 = Task.Run(
@@ -80,18 +76,18 @@ public class ThreadSafeAccessTests
                 {
                     using var source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                     var subject = await PersistentQueue
-                        .Create("queue_b", Substitute.For<ILogger<IPersistentQueue>>(), cancellationToken: source.Token)
-                        .ConfigureAwait(false);
+                        .Create("queue_b", Substitute.For<ILogger<PersistentQueue>>(), cancellationToken: source.Token)
+                        ;
                     using var session = subject.OpenSession();
-                    await session.Dequeue(CancellationToken.None).ConfigureAwait(false);
+                    await session.Dequeue(CancellationToken.None);
                     Interlocked.Increment(ref t2S);
-                    await session.Flush(source.Token).ConfigureAwait(false);
-                    await subject.DisposeAsync().ConfigureAwait(false);
+                    await session.Flush(source.Token);
+                    await subject.DisposeAsync();
                 }
             });
 
-        await t1.ConfigureAwait(false);
-        await t2.ConfigureAwait(false);
+        await t1;
+        await t2;
 
         Assert.True(t1S == target);
         Assert.True(t2S == target);

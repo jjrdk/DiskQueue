@@ -6,12 +6,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Polly;
 
-public class PersistentBuffer : IObservable<byte[]>, IObserver<byte[]>, IAsyncDisposable
+public class PersistentBuffer : IObservable<ReadOnlyMemory<byte>>, IObserver<ReadOnlyMemory<byte>>, IAsyncDisposable
 {
     private readonly IPersistentQueue queue;
     private readonly int retryCount;
     private CancellationTokenSource tokenSource;
-    private readonly List<IObserver<byte[]>> subscribers = new();
+    private readonly List<IObserver<ReadOnlyMemory<byte>>> subscribers = new();
     private Task work;
 
     public PersistentBuffer(IPersistentQueue queue, int retryCount)
@@ -47,9 +47,9 @@ public class PersistentBuffer : IObservable<byte[]>, IObserver<byte[]>, IAsyncDi
     }
 
     /// <inheritdoc />
-    IDisposable IObservable<byte[]>.Subscribe(IObserver<byte[]> observer)
+    IDisposable IObservable<ReadOnlyMemory<byte>>.Subscribe(IObserver<ReadOnlyMemory<byte>> observer)
     {
-        return new Subscription<byte[]>(observer, subscribers);
+        return new Subscription<ReadOnlyMemory<byte>>(observer, subscribers);
     }
 
     /// <inheritdoc />
@@ -61,7 +61,7 @@ public class PersistentBuffer : IObservable<byte[]>, IObserver<byte[]>, IAsyncDi
     }
 
     /// <inheritdoc />
-    void IObserver<byte[]>.OnCompleted()
+    void IObserver<ReadOnlyMemory<byte>>.OnCompleted()
     {
         foreach (var subscriber in subscribers)
         {
@@ -72,7 +72,7 @@ public class PersistentBuffer : IObservable<byte[]>, IObserver<byte[]>, IAsyncDi
     }
 
     /// <inheritdoc />
-    void IObserver<byte[]>.OnError(Exception error)
+    void IObserver<ReadOnlyMemory<byte>>.OnError(Exception error)
     {
         foreach (var subscriber in subscribers)
         {
@@ -81,16 +81,19 @@ public class PersistentBuffer : IObservable<byte[]>, IObserver<byte[]>, IAsyncDi
     }
 
     /// <inheritdoc />
-    void IObserver<byte[]>.OnNext(byte[] value)
+    void IObserver<ReadOnlyMemory<byte>>.OnNext(ReadOnlyMemory<byte> value)
     {
-        var task = Task.Run(
-            async () =>
-            {
-                using var session = queue.OpenSession();
-                await session.Enqueue(value).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
-            });
-        task.Wait();
+        lock (queue)
+        {
+            var task = Task.Run(
+                async () =>
+                {
+                    using var session = queue.OpenSession();
+                    await session.Enqueue(value).ConfigureAwait(false);
+                    await session.Flush().ConfigureAwait(false);
+                });
+            task.Wait();
+        }
     }
 
     private async Task ProcessMessages()
@@ -125,7 +128,7 @@ public class PersistentBuffer : IObservable<byte[]>, IObserver<byte[]>, IAsyncDi
             while (!tokenSource.IsCancellationRequested)
             {
                 var s = session;
-                var content = await Policy.HandleResult<byte[]>(b => b == null)
+                var content = await Policy.HandleResult<ReadOnlyMemory<byte>>(b => b.IsEmpty)
                     .WaitAndRetryForeverAsync(i => TimeSpan.FromMilliseconds(i * 100))
                     .ExecuteAsync(async () => await s.Dequeue(tokenSource.Token).ConfigureAwait(false))
                     .ConfigureAwait(false);
@@ -140,7 +143,7 @@ public class PersistentBuffer : IObservable<byte[]>, IObserver<byte[]>, IAsyncDi
         }
     }
 
-    private void NotifySubscribers(byte[] content)
+    private void NotifySubscribers(ReadOnlyMemory<byte> content)
     {
         foreach (var subscriber in subscribers)
         {

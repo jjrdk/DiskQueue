@@ -8,13 +8,13 @@ using Polly;
 
 public static class PersistentAsyncEnumerable
 {
-    public static async IAsyncEnumerable<byte[]> ToAsyncEnumerable(
+    public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ToAsyncEnumerable(
         this IPersistentQueueSession session,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            var content = await Policy.HandleResult<byte[]>(b => b == null)
+            var content = await Policy.HandleResult<ReadOnlyMemory<byte>>(b => b.IsEmpty)
                 .WaitAndRetryForeverAsync(i => TimeSpan.FromMilliseconds(Math.Min(i * 100, 1000)))
                 .ExecuteAsync(
                     async (_, c) => await session.Dequeue(c).ConfigureAwait(false),

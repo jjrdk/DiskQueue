@@ -23,7 +23,7 @@ public static class PersistentQueueExtensions
     public static IPersistentQueueSession<T> OpenSession<T>(
         this IPersistentQueue queue,
         Func<T, byte[]> serializer,
-        Func<byte[], T> deserializer)
+        Func<ReadOnlyMemory<byte>, T> deserializer)
     {
         return new TypedPersistentQueueSession<T>(queue.OpenSession(), serializer, deserializer);
     }
@@ -32,9 +32,12 @@ public static class PersistentQueueExtensions
     {
         private readonly IPersistentQueueSession rawSession;
         private readonly Func<T, byte[]> serializer;
-        private readonly Func<byte[], T> deserializer;
+        private readonly Func<ReadOnlyMemory<byte>, T> deserializer;
 
-        public TypedPersistentQueueSession(IPersistentQueueSession rawSession, Func<T, byte[]> serializer, Func<byte[], T> deserializer)
+        public TypedPersistentQueueSession(
+            IPersistentQueueSession rawSession,
+            Func<T, byte[]> serializer,
+            Func<ReadOnlyMemory<byte>, T> deserializer)
         {
             this.rawSession = rawSession;
             this.serializer = serializer;
@@ -59,7 +62,7 @@ public static class PersistentQueueExtensions
         public async Task<T> Dequeue(CancellationToken cancellationToken = default)
         {
             var bytes = await rawSession.Dequeue(cancellationToken).ConfigureAwait(false);
-            return bytes == null ? default : deserializer(bytes);
+            return bytes.IsEmpty ? default : deserializer(bytes);
         }
 
         /// <inheritdoc />
@@ -69,9 +72,17 @@ public static class PersistentQueueExtensions
         }
     }
 
+    /// <summary>
+    /// Converts the <see cref="IPersistentQueueSession"/> to an <see cref="IAsyncEnumerable{T}"/>.
+    /// </summary>
+    /// <param name="session">The queue to convert.</param>
+    /// <param name="deserializer">The item deserializer.</param>
+    /// <param name="cancellationToken">The <see cref="CancellationToken"/> for the async operation.</param>
+    /// <typeparam name="T">The item <see cref="Type"/>.</typeparam>
+    /// <returns>The queue as an <see cref="IAsyncEnumerable{T}"/></returns>
     public static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(
         this IPersistentQueueSession session,
-        Func<byte[], T> deserializer,
+        Func<ReadOnlyMemory<byte>, T> deserializer,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await foreach (var item in session.ToAsyncEnumerable(cancellationToken))

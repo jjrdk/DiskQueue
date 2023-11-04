@@ -17,20 +17,19 @@ public class EncryptedPersistentQueueTests : PersistentQueueTestsBase
         using var algo = CreateAlgo();
         await using var queue = await PersistentQueue.Create(
                 Path,
-                Substitute.For<ILogger<IPersistentQueue>>(),
+                Substitute.For<ILogger<PersistentQueue>>(),
                 paranoidFlushing: false,
-                symmetricAlgorithm: algo)
-            .ConfigureAwait(false);
+                symmetricAlgorithm: algo);
         using (var session = queue.OpenSession())
         {
-            await session.Enqueue(data).ConfigureAwait(false);
-            await session.Flush().ConfigureAwait(false);
+            await session.Enqueue(data);
+            await session.Flush();
         }
 
         using (var session = queue.OpenSession())
         {
-            var result = await session.Dequeue().ConfigureAwait(false);
-            Assert.Equal<byte>(data, result);
+            var result = await session.Dequeue();
+            Assert.Equal(data, result);
         }
     }
 
@@ -43,14 +42,13 @@ public class EncryptedPersistentQueueTests : PersistentQueueTestsBase
     }
 
     [Fact]
-    public async Task Dequeing_from_empty_queue_will_return_null()
+    public async Task Dequeuing_from_empty_queue_will_return_null()
     {
         using var algo = CreateAlgo();
         await using var queue = await PersistentQueue
-            .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), symmetricAlgorithm: algo)
-            .ConfigureAwait(false);
+            .Create(Path, Substitute.For<ILogger<PersistentQueue>>(), symmetricAlgorithm: algo);
         using var session = queue.OpenSession();
-        Assert.Null(await session.Dequeue().ConfigureAwait(false));
+        Assert.True((await session.Dequeue()).IsEmpty);
     }
 
     [Fact]
@@ -58,21 +56,21 @@ public class EncryptedPersistentQueueTests : PersistentQueueTestsBase
     {
         using var algo = CreateAlgo();
         await using (var queue = await PersistentQueue
-            .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), symmetricAlgorithm: algo)
-            .ConfigureAwait(false))
+            .Create(Path, Substitute.For<ILogger<PersistentQueue>>(), symmetricAlgorithm: algo)
+)
             using (var session = queue.OpenSession())
             {
-                await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
+                await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+                await session.Flush();
             }
 
         await using (var queue = await PersistentQueue
-            .Create(Path, Substitute.For<ILogger<IPersistentQueue>>(), symmetricAlgorithm: algo)
-            .ConfigureAwait(false))
+            .Create(Path, Substitute.For<ILogger<PersistentQueue>>(), symmetricAlgorithm: algo)
+)
             using (var session = queue.OpenSession())
             {
-                Assert.Equal<byte>(new byte[] { 1, 2, 3, 4 }, await session.Dequeue().ConfigureAwait(false));
-                await session.Flush().ConfigureAwait(false);
+                Assert.Equal(new byte[] { 1, 2, 3, 4 }, await session.Dequeue());
+                await session.Flush();
             }
     }
 }

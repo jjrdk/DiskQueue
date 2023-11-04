@@ -53,9 +53,11 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
     private static readonly object ConfigLock = new();
     private volatile bool disposed;
     private FileStream fileLock;
+
     private readonly SymmetricAlgorithm symmetricAlgorithm;
+
     //private readonly ILoggerFactory loggerFactory;
-    private readonly ILogger<IPersistentQueue> logger;
+    private readonly ILogger<PersistentQueue> logger;
     private readonly bool trimTransactionLogOnDispose;
     private readonly int suggestedReadBuffer;
     private readonly int suggestedWriteBuffer;
@@ -75,7 +77,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
         int suggestedReadBuffer,
         int suggestedWriteBuffer,
         SymmetricAlgorithm symmetricAlgorithm,
-        ILogger<IPersistentQueue> logger)
+        ILogger<PersistentQueue> logger)
     {
         if (path == null)
         {
@@ -115,7 +117,8 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             catch (IOException e)
             {
                 logger.LogError(e, "IO exception");
-                throw new InvalidOperationException("Another instance of the queue is already in action, or directory does not exists", e);
+                throw new InvalidOperationException(
+                    "Another instance of the queue is already in action, or directory does not exists", e);
             }
         }
     }
@@ -137,7 +140,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
     /// <returns>An <see cref="IPersistentQueue"/> as an async operation.</returns>
     public static Task<IPersistentQueue> Create(
         string path,
-        ILogger<IPersistentQueue> logger,
+        ILogger<PersistentQueue> logger,
         TimeSpan maxWait,
         int maxFileSize = Constants._32Megabytes,
         bool throwOnConflict = true,
@@ -180,7 +183,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
     /// <returns>An <see cref="IPersistentQueue"/> as an async operation.</returns>
     public static async Task<IPersistentQueue> Create(
         string path,
-        ILogger<IPersistentQueue> logger,
+        ILogger<PersistentQueue> logger,
         int maxFileSize = Constants._32Megabytes,
         bool throwOnConflict = true,
         int suggestedMaxTransactionLogSize = Constants._32Megabytes,
@@ -235,7 +238,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
                 }
                 catch (PlatformNotSupportedException ex)
                 {
-                    logger.LogError(ex, "Blocked by " + ex.GetType().Name);
+                    logger.LogError(ex, "Blocked by {Type}", ex.GetType().Name);
                     throw;
                 }
                 catch (UnableToSetupException)
@@ -249,7 +252,8 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
                     {
                         throw;
                     }
-                    logger.LogDebug("Retrying setup.");
+
+                    logger.LogDebug("Retrying setup");
                     await Task.Delay(50, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -269,6 +273,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             fileLock.Dispose();
             File.Delete(target);
         }
+
         fileLock = null;
     }
 
@@ -297,6 +302,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             {
                 return 0;
             }
+
             try
             {
                 entriesSemaphore.Wait();
@@ -378,6 +384,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
         finally
         {
             ConfigSemaphore.Release();
+            GC.SuppressFinalize(this);
         }
     }
 
@@ -401,7 +408,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             Interlocked.Increment(ref currentFileNumber);
             // If we get to int.MaxValue then start over.
             Interlocked.CompareExchange(ref currentFileNumber, 0, int.MaxValue);
-            logger.LogDebug("Log file number: " + currentFileNumber);
+            logger.LogDebug("Log file number: {Number}", currentFileNumber);
             var writer = CreateWriter();
             // we assume same size messages, or near size messages
             // that gives us a good heuristic for creating the size of
@@ -504,6 +511,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             {
                 await ReadAhead().ConfigureAwait(false);
             }
+
             entries.RemoveFirst();
             // we need to create a copy so we will not hold the data
             // in memory as well as the position
@@ -532,7 +540,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             // if we have unordered queue, or sparse items
             if (entry != lastEntry
              && (entry.FileNumber != lastEntry.FileNumber
-                 || entry.Start != (lastEntry.Start + lastEntry.Length)))
+                 || entry.Start != lastEntry.Start + lastEntry.Length))
             {
                 break;
             }
@@ -578,10 +586,8 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             GetDataPath(firstEntry.FileNumber),
             FileMode.OpenOrCreate,
             FileAccess.Read,
-            FileShare.ReadWrite)
-        {
-            Position = firstEntry.Start
-        };
+            FileShare.ReadWrite);
+        reader.Position = firstEntry.Start;
         var totalRead = 0;
         do
         {
@@ -593,8 +599,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             }
 
             totalRead += bytesRead;
-        }
-        while (totalRead < buffer.Length);
+        } while (totalRead < buffer.Length);
 
         return buffer;
     }
@@ -695,6 +700,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
         {
             checkedOut = checkedOutEntries.ToArray();
         }
+
         foreach (var entry in checkedOut)
         {
             await WriteEntryToTransactionLog(ms, entry, OperationType.Enqueue).ConfigureAwait(false);
@@ -715,6 +721,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
         {
             await WriteEntryToTransactionLog(ms, entry, OperationType.Enqueue).ConfigureAwait(false);
         }
+
         await ms.WriteAsync(Constants.EndTransactionSeparator).ConfigureAwait(false);
         await ms.FlushAsync().ConfigureAwait(false);
         var transactionBuffer = ms.ToArray();
@@ -734,6 +741,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
         {
             return Array.Empty<Entry>();
         }
+
         var output = new List<Entry>(25);
         var cur = list.First;
         while (cur != null)
@@ -741,6 +749,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             output.Add(cur.Value);
             cur = cur.Next;
         }
+
         return output.ToArray();
     }
 
@@ -789,7 +798,11 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
 
                 case OperationType.Dequeue:
                     var entryToRemove = new Entry(operation);
-                    lock (checkedOutEntries) { checkedOutEntries.Remove(entryToRemove); }
+                    lock (checkedOutEntries)
+                    {
+                        checkedOutEntries.Remove(entryToRemove);
+                    }
+
                     var itemCountRemoval = Extensions.GetValueOrDefault(countOfItemsPerFile, entryToRemove.FileNumber);
                     countOfItemsPerFile[entryToRemove.FileNumber] = itemCountRemoval - 1;
                     break;
@@ -816,6 +829,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
         {
             countOfItemsPerFile.Remove(i);
         }
+
         return filesToRemove.ToArray();
     }
 
@@ -830,10 +844,14 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             throw new UnableToSetupException(msg);
         }
 
-        throw new EndOfStreamException();   // silently truncate transactions
+        throw new EndOfStreamException(); // silently truncate transactions
     }
 
-    private void AssertTransactionSeparator(BinaryReader binaryReader, int txCount, Marker whichSeparator, Action hasData)
+    private void AssertTransactionSeparator(
+        BinaryReader binaryReader,
+        int txCount,
+        Marker whichSeparator,
+        Action hasData)
     {
         var bytes = binaryReader.ReadBytes(16);
         if (bytes.Length == 0) throw new EndOfStreamException();
@@ -847,7 +865,10 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             {
                 throw new EndOfStreamException();
             }
-            ThrowIfStrict("Unexpected data in transaction log. Expected to get transaction separator but got truncated data. Tx #" + txCount);
+
+            ThrowIfStrict(
+                "Unexpected data in transaction log. Expected to get transaction separator but got truncated data. Tx #" +
+                txCount);
         }
 
         Guid expectedValue, otherValue;
@@ -871,9 +892,12 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
         {
             if (separator == otherValue) // found a marker, but of the wrong type
             {
-                ThrowIfStrict("Unexpected data in transaction log. Expected " + whichSeparator + " but found " + otherSeparator);
+                ThrowIfStrict(
+                    $"Unexpected data in transaction log. Expected {whichSeparator} but found {otherSeparator}");
             }
-            ThrowIfStrict("Unexpected data in transaction log. Expected to get transaction separator but got unknown data. Tx #" + txCount);
+
+            ThrowIfStrict(
+                $"Unexpected data in transaction log. Expected to get transaction separator but got unknown data. Tx #{txCount}");
         }
     }
 
@@ -901,7 +925,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
         }
 
         var optimalSize = GetOptimalTransactionLogSize();
-        if (txLogSize < (optimalSize * 2)) return;  // not enough disparity to bother trimming
+        if (txLogSize < optimalSize * 2) return; // not enough disparity to bother trimming
 
         await FlushTrimmedTransactionLog().ConfigureAwait(false);
     }
@@ -918,6 +942,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
         {
             entriesSemaphore.Release();
         }
+
         foreach (var fileNumber in filesToRemove)
         {
             if (currentFileNumber == fileNumber)
@@ -941,6 +966,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
         {
             await WriteEntryToTransactionLog(ms, new Entry(operation), operation.Type).ConfigureAwait(false);
         }
+
         await ms.WriteAsync(Constants.EndTransactionSeparator).ConfigureAwait(false);
 
         await ms.FlushAsync().ConfigureAwait(false);
@@ -982,7 +1008,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
                 sizeof(int) //		length
             )
            *
-            (CurrentCountOfItemsInQueue);
+            CurrentCountOfItemsInQueue;
 
         return size;
     }

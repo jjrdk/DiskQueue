@@ -29,7 +29,6 @@ public static class PersistentQueueSessionExtensions
             if (data is null || data.Equals(default(T)))
             {
                 count = Math.Min(10, count + 1);
-                await Task.Delay(count * 100, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -45,7 +44,7 @@ public static class PersistentQueueSessionExtensions
     /// <param name="session">The <see cref="IPersistentQueueSession{T}"/> to convert.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> for the async operation.</param>
     /// <returns>An <see cref="IAsyncEnumerable{T}"/> returning non-null queue values.</returns>
-    public static async IAsyncEnumerable<byte[]> ToAsyncEnumerable(
+    public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ToAsyncEnumerable(
         this IPersistentQueueSession session,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -53,10 +52,9 @@ public static class PersistentQueueSessionExtensions
         while (!cancellationToken.IsCancellationRequested)
         {
             var data = await session.Dequeue(cancellationToken).ConfigureAwait(false);
-            if (data == null)
+            if (data.IsEmpty)
             {
                 count = Math.Min(10, count + 1);
-                await Task.Delay(count * 100, cancellationToken).ConfigureAwait(false);
             }
             else
             {

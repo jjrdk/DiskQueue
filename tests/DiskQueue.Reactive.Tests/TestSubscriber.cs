@@ -4,7 +4,7 @@ namespace DiskQueue.Reactive.Tests;
 
 using System.Threading;
 
-public class TestSubscriber : IObserver<byte[]>
+public class TestSubscriber : IObserver<ReadOnlyMemory<byte>>
 {
     private readonly ManualResetEventSlim waitHandle;
 
@@ -34,9 +34,9 @@ public class TestSubscriber : IObserver<byte[]>
     }
 
     /// <inheritdoc />
-    public void OnNext(byte[] value)
+    public void OnNext(ReadOnlyMemory<byte> value)
     {
-        LastMessage = value;
+        LastMessage = value.ToArray();
         waitHandle.Set();
     }
 }

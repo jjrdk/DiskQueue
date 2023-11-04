@@ -3,10 +3,10 @@ namespace DiskQueue.Reactive.Tests;
 using System;
 using System.Threading;
 
-public class CrashSubscriber : IObserver<byte[]>
+public class CrashSubscriber : IObserver<ReadOnlyMemory<byte>>
 {
     private readonly ManualResetEventSlim waitHandle;
-    private int count = 0;
+    private int count;
 
     public CrashSubscriber(ManualResetEventSlim waitHandle)
     {
@@ -32,7 +32,7 @@ public class CrashSubscriber : IObserver<byte[]>
     }
 
     /// <inheritdoc />
-    public void OnNext(byte[] value)
+    public void OnNext(ReadOnlyMemory<byte> value)
     {
         if (Interlocked.Increment(ref count) % 3 == 0)
         {

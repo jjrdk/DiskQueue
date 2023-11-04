@@ -134,7 +134,7 @@ internal sealed class PersistentQueueSession : IPersistentQueueSession
     /// Try to pull data from the queue. Data is removed from the queue on `Flush()`
     /// </summary>
     /// <param name="cancellationToken"></param>
-    public async Task<byte[]> Dequeue(CancellationToken cancellationToken = default)
+    public async Task<ReadOnlyMemory<byte>> Dequeue(CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Dequeue item");
         var entry = await queue.Dequeue(cancellationToken).ConfigureAwait(false);

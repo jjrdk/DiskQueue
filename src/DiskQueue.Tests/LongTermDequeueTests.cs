@@ -16,7 +16,7 @@ public class LongTermDequeueTests : IDisposable
     public LongTermDequeueTests()
     {
         _source = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        _q = PersistentQueue.Create("./queue", Substitute.For<ILogger<IPersistentQueue>>(), cancellationToken: _source.Token)
+        _q = PersistentQueue.Create("./queue", Substitute.For<ILogger<PersistentQueue>>(), cancellationToken: _source.Token)
             .GetAwaiter()
             .GetResult();
     }
@@ -35,12 +35,12 @@ public class LongTermDequeueTests : IDisposable
 
         using (var s2 = _q.OpenSession())
         {
-            await s2.Enqueue(new byte[] {1, 2, 3, 4}).ConfigureAwait(false);
-            await s2.Flush().ConfigureAwait(false);
+            await s2.Enqueue(new byte[] {1, 2, 3, 4});
+            await s2.Flush();
         }
 
-        var x = await s1.Dequeue(CancellationToken.None).ConfigureAwait(false);
-        await s1.Flush().ConfigureAwait(false);
+        var x = await s1.Dequeue(CancellationToken.None);
+        await s1.Flush();
         s1.Dispose();
 
         Assert.Equal(new byte[] {1, 2, 3, 4}, x);

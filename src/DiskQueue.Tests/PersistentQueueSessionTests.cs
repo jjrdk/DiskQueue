@@ -27,9 +27,9 @@ public class PersistentQueueSessionTests : PersistentQueueTestsBase
                     1024 * 1024,
                     null,
                     Substitute.For<ILogger<IPersistentQueueSession>>());
-                await session.Enqueue(new byte[64 * 1024 * 1024 + 1]).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                await session.Enqueue(new byte[64 * 1024 * 1024 + 1]);
+                await session.Flush();
+            });
 
         Assert.Equal("Memory stream is not expandable.",
             pendingWriteException.InnerExceptions[0].Message);
@@ -50,9 +50,9 @@ public class PersistentQueueSessionTests : PersistentQueueTestsBase
                     1024 * 1024,
                     null,
                     Substitute.For<ILogger<IPersistentQueueSession>>());
-                await session.Enqueue(new byte[64]).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                await session.Enqueue(new byte[64]);
+                await session.Flush();
+            });
 
         Assert.Equal(@"Memory stream is not expandable.", notSupportedException.InnerExceptions[0].Message);
     }
@@ -60,11 +60,11 @@ public class PersistentQueueSessionTests : PersistentQueueTestsBase
     [Fact]
     public async Task If_data_stream_is_truncated_will_raise_error()
     {
-        await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false))
+        await using (var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>()))
             using (var session = queue.OpenSession())
             {
-                await session.Enqueue(new byte[] { 1, 2, 3, 4 }).ConfigureAwait(false);
-                await session.Flush().ConfigureAwait(false);
+                await session.Enqueue(new byte[] { 1, 2, 3, 4 });
+                await session.Flush();
             }
 
         await using (var fs = new FileStream(System.IO.Path.Combine(Path, "data.0"), FileMode.Open))
@@ -75,10 +75,10 @@ public class PersistentQueueSessionTests : PersistentQueueTestsBase
         var invalidOperationException = await Assert.ThrowsAsync<InvalidOperationException>(
             async () =>
             {
-                await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<IPersistentQueue>>()).ConfigureAwait(false);
+                await using var queue = await PersistentQueue.Create(Path, Substitute.For<ILogger<PersistentQueue>>());
                 using var session = queue.OpenSession();
-                await session.Dequeue().ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                await session.Dequeue();
+            });
 
         Assert.Equal("End of file reached while trying to read queue item",
             invalidOperationException.Message);
@@ -88,7 +88,7 @@ public class PersistentQueueSessionTests : PersistentQueueTestsBase
     {
         var queueStub = Substitute.For<IPersistentQueueStore>();
 
-        queueStub.WhenForAnyArgs(async x => await x.AcquireWriter(null, null, null).ConfigureAwait(false))
+        queueStub.WhenForAnyArgs(async x => await x.AcquireWriter(null, null, null))
             .Do(c => CallActionArgument(c, limitedSizeStream).Wait());
         return queueStub;
     }
