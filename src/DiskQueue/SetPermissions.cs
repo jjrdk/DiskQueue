@@ -31,7 +31,7 @@ internal static class SetPermissions
     {
         if (Directory.Exists(path)) Directory_RWX_all(path);
         else if (File.Exists(path)) File_RWX_all(path);
-        else throw new UnauthorizedAccessException("Can't access the path \"" + path + "\"");
+        else throw new UnauthorizedAccessException($"Can't access the path \"{path}\"");
     }
 
     /// <summary>

@@ -64,10 +64,10 @@ internal static class Atomic
 	{
 		lock (_lock)
 		{
-			if (File.Exists(path + ".old_copy"))
+			if (File.Exists($"{path}.old_copy"))
 			{
 				if (WaitDelete(path))
-					File.Move(path + ".old_copy", path);
+					File.Move($"{path}.old_copy", path);
 			}
 
 			using var stream = new FileStream(path,
@@ -94,8 +94,8 @@ internal static class Atomic
 			// if the old copy file exists, this means that we have
 			// a previous corrupt write, so we will not overrite it, but
 			// rather overwrite the current file and keep it as our backup.
-			if (File.Exists(path + ".old_copy") == false)
-				File.Move(path, path + ".old_copy");
+			if (File.Exists($"{path}.old_copy") == false)
+				File.Move(path, $"{path}.old_copy");
 
 			using (
 				var stream = new FileStream(path,
@@ -111,7 +111,7 @@ internal static class Atomic
 				stream.Flush();
 			}
 
-			WaitDelete(path + ".old_copy");
+			WaitDelete($"{path}.old_copy");
 		}
 	}
 

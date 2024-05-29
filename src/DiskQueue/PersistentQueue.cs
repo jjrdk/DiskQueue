@@ -867,8 +867,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
             }
 
             ThrowIfStrict(
-                "Unexpected data in transaction log. Expected to get transaction separator but got truncated data. Tx #" +
-                txCount);
+                $"Unexpected data in transaction log. Expected to get transaction separator but got truncated data. Tx #{txCount}");
         }
 
         Guid expectedValue, otherValue;
@@ -991,7 +990,7 @@ public class PersistentQueue : IPersistentQueue, IPersistentQueueStore
 
     private string GetDataPath(int index)
     {
-        return Path.Combine(path, "data." + index);
+        return Path.Combine(path, $"data.{index}");
     }
 
     private long GetOptimalTransactionLogSize()

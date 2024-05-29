@@ -84,7 +84,8 @@ internal sealed class PersistentQueueSession : IPersistentQueueSession
     {
         logger.LogDebug("Encrypting content");
         await using var memoryStream = new MemoryStream();
-        await using (var cs = new CryptoStream(memoryStream, symmetricAlgorithm.CreateEncryptor(), CryptoStreamMode.Write, true))
+        await using (var cs = new CryptoStream(memoryStream, symmetricAlgorithm.CreateEncryptor(),
+            CryptoStreamMode.Write, true))
         {
             await cs.WriteAsync(data, cancellationToken).ConfigureAwait(false);
             await cs.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -144,20 +145,20 @@ internal sealed class PersistentQueueSession : IPersistentQueueSession
         }
 
         operations.Add(new Operation(OperationType.Dequeue, entry.FileNumber, entry.Start, entry.Length));
-        if (symmetricAlgorithm != null)
+        if (symmetricAlgorithm == null)
         {
-            await using var outputStream = new MemoryStream();
-            await using var dataStream = new MemoryStream(entry.Data);
-            await using var cryptoStream = new CryptoStream(
-                dataStream,
-                symmetricAlgorithm.CreateDecryptor(),
-                CryptoStreamMode.Read);
-            await cryptoStream.CopyToAsync(outputStream, cancellationToken).ConfigureAwait(false);
-            await cryptoStream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            return outputStream.ToArray();
+            return entry.Data;
         }
 
-        return entry.Data;
+        await using var outputStream = new MemoryStream();
+        await using var dataStream = new MemoryStream(entry.Data);
+        await using var cryptoStream = new CryptoStream(
+            dataStream,
+            symmetricAlgorithm.CreateDecryptor(),
+            CryptoStreamMode.Read);
+        await cryptoStream.CopyToAsync(outputStream, cancellationToken).ConfigureAwait(false);
+        await cryptoStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        return outputStream.ToArray();
     }
 
     /// <summary>
@@ -172,6 +173,7 @@ internal sealed class PersistentQueueSession : IPersistentQueueSession
         {
             return;
         }
+
         try
         {
             await queue.AcquireWriter(currentStream, AsyncWriteToStream, OnReplaceStream)
