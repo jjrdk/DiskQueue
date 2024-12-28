@@ -1,0 +1,6 @@
+﻿<Solution>
+  <Project Path="src\DiskQueue.Reactive\DiskQueue.Reactive.csproj" Type="Classic C#" />
+  <Project Path="src\DiskQueue.Tests\DiskQueue.Tests.csproj" />
+  <Project Path="src\DiskQueue\DiskQueue.csproj" />
+  <Project Path="tests\DiskQueue.Reactive.Tests\DiskQueue.Reactive.Tests.csproj" Type="Classic C#" />
+</Solution>
